@@ -1,6 +1,10 @@
 [
   {
-    "name": "字库.txt",
-    "path": "file/字库.txt"
+    "name": "独体字.txt",
+    "path": "file/独体字.txt"
+  },
+    {
+    "name": "合体字.txt",
+    "path": "file/合体字.txt"
   }
 ] 

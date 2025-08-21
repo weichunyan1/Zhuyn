@@ -1,0 +1,755 @@
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #e0f7fa 0%, #f5f5f5 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 25px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.12);
+            width: 100%;
+            max-width: 900px;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            border: 3px solid #e3f2fd;
+        }
+        
+        .header {
+            margin-bottom: 20px;
+            position: relative;
+        }
+        
+        h1 {
+            color: #1565c0;
+            font-size: 2.5rem;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
+            letter-spacing: 1px;
+            font-weight: normal;
+        }
+        
+        .subtitle {
+            color: #5c6bc0;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            font-weight: normal;
+        }
+        
+        .settings-panel {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .file-upload, .preset-upload, .time-setting {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 15px;
+            flex: 1;
+            min-width: 250px;
+            text-align: left;
+        }
+        
+        .file-upload h3, .time-setting h3 {
+            color: #1565c0;
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+            font-weight: normal;
+        }
+        
+        .file-input {
+            margin-top: 10px;
+            width: 100%;
+        }
+        
+        .time-options {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .time-option {
+            padding: 8px 15px;
+            background: #bbdefb;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .time-option.active {
+            background: #64b5f6;
+            color: white;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .time-option.disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .game-container {
+            margin: 20px 0;
+            position: relative;
+            min-height: 320px;
+        }
+        
+        .character-display {
+            height: 220px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #e3f2fd;
+            border-radius: 20px;
+            margin-bottom: 25px;
+            position: relative;
+            transition: all 0.3s ease;
+            border: 2px dashed #90caf9;
+        }
+        
+        .target-character {
+            font-size: 8rem;
+            font-weight: 200;
+            color: #0d47a1;
+            transition: all 0.5s ease;
+            font-family: "楷体", "KaiTi", "Noto Serif SC",serif;
+        }
+        
+        .options-container {
+            height: 220px;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            background: #e3f2fd;
+            border-radius: 20px;
+            margin-bottom: 25px;
+            border: 2px dashed #90caf9;
+            padding: 20px;
+        }
+        
+        /* 大组选项（>8）启用自适应网格与滚动 */
+        .options-container.grid-mode {
+            display: grid !important;
+            grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+            gap: 12px;
+            max-height: 280px;
+            overflow-y: auto;
+            align-content: start;
+        }
+        .options-container.grid-mode .option {
+            width: 90px;
+            height: 90px;
+            font-size: 3rem;
+        }
+
+        .option {
+            width: 120px;
+            height: 120px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #bbdefb;
+            border-radius: 15px;
+            font-size: 4rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            border: 2px solid #90caf9;
+            font-family: "楷体", "KaiTi", "Noto Serif SC", serif;
+            font-weight: normal;
+        }
+        
+        /* 针对iOS设备的特殊样式 */
+        @supports (-webkit-touch-callout: none) {
+            .target-character,
+            .option {
+                font-family: "Kaiti SC", "STKaiti", "KaiTi", "楷体", "Songti SC", "Noto Serif SC", serif;
+                font-weight: normal;
+            }
+        }
+
+        .option:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+            background: #90caf9;
+        }
+        
+        .feedback {
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.8rem;
+            font-weight: normal;
+            margin: 15px 0;
+            transition: all 0.3s ease;
+        }
+        
+        .correct {
+            color: #2e7d32;
+            text-shadow: 0 0 8px rgba(76, 175, 80, 0.4);
+        }
+        
+        .incorrect {
+            color: #c62828;
+            text-shadow: 0 0 8px rgba(244, 67, 54, 0.3);
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            background: #e1f5fe;
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        }
+        
+        .stat-box {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2.2rem;
+            font-weight: normal;
+            color: #0277bd;
+        }
+        
+        .stat-label {
+            color: #546e7a;
+            font-size: 1rem;
+            margin-top: 5px;
+            font-weight: normal;
+        }
+        
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: #0288d1;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 6px 18px rgba(2, 136, 209, 0.4);
+            letter-spacing: 1px;
+            min-width: 140px;
+            font-weight: normal;
+        }
+        
+        button:hover {
+            background: #0277bd;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 22px rgba(2, 136, 209, 0.6);
+        }
+        
+        button:disabled {
+            background: #b0bec5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        #nextBtn {
+            background: #43a047;
+        }
+        
+        #nextBtn:hover {
+            background: #388e3c;
+        }
+        
+        #exportBtn {
+            background: #ff9800;
+        }
+        
+        #exportBtn:hover {
+            background: #f57c00;
+        }
+        
+        .instructions {
+            background: #fffde7;
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 20px;
+            text-align: left;
+            border: 2px solid #fff9c4;
+            font-size: 1rem;
+        }
+        
+        .instructions h3 {
+            color: #f57f17;
+            margin-bottom: 12px;
+            text-align: center;
+            font-size: 1.4rem;
+            font-weight: normal;
+        }
+        
+        .instructions p {
+            margin: 10px 0;
+            color: #5d4037;
+            line-height: 1.5;
+            font-weight: normal;
+        }
+        
+        .counter {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #ff9800;
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            font-weight: normal;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .celebration {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+            opacity: 0;
+        }
+        
+        .report-container {
+            background: #e8f5e9;
+            border-radius: 15px;
+            padding: 15px;
+            margin-top: 20px;
+            text-align: left;
+            display: none;
+            border: 2px solid #c8e6c9;
+        }
+        
+        .report-container.show {
+            display: block;
+            animation: fadeIn 0.6s ease;
+        }
+        
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #c8e6c9;
+        }
+        
+        .report-title {
+            font-size: 1.6rem;
+            color: #2e7d32;
+            font-weight: normal;
+        }
+        
+        .report-content {
+            max-height: 280px;
+            overflow-y: auto;
+        }
+        
+        .report-item {
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 8px;
+            background: white;
+            display: grid;
+            grid-template-columns: 1fr 2fr 2fr 1fr;
+            gap: 8px;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            font-weight: normal;
+        }
+        
+        .report-header-row {
+            font-weight: normal;
+            background: #c8e6c9;
+            padding: 10px;
+            border-radius: 8px;
+            display: grid;
+            grid-template-columns: 1fr 2fr 2fr 1fr;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        
+        .correct-result {
+            color: #2e7d32;
+        }
+        
+        .incorrect-result {
+            color: #c62828;
+        }
+        
+        .close-report {
+            background: #ff9800;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: normal;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2.3rem;
+            }
+            
+            .target-character {
+                font-size: 6rem;
+            }
+            
+            .option {
+                width: 100px;
+                height: 100px;
+                font-size: 3.5rem;
+            }
+            
+            .character-display, .options-container {
+                height: 180px;
+            }
+            
+            .feedback {
+                font-size: 1.6rem;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            button {
+                width: 100%;
+                max-width: 280px;
+            }
+            
+            .report-header-row, .report-item {
+                grid-template-columns: 1fr;
+                text-align: center;
+                font-size: 0.9rem;
+            }
+            
+            .report-header-row > div, .report-item > div {
+                padding: 4px 0;
+            }
+            
+            .settings-panel {
+                flex-direction: column;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            .character-display, .options-container {
+                height: 150px;
+            }
+            
+            .target-character {
+                font-size: 5rem;
+            }
+            
+            .option {
+                width: 80px;
+                height: 80px;
+                font-size: 3rem;
+            }
+            
+            .feedback {
+                font-size: 1.4rem;
+                height: 50px;
+            }
+            
+            .stat-value {
+                font-size: 1.8rem;
+            }
+            
+            button {
+                padding: 10px 18px;
+                font-size: 1.1rem;
+                min-width: 120px;
+            }
+        }
+
+        /* ===== iPad Safari 表单元素优化 ===== */
+        .file-input, #presetFileSelect {
+            font-size: 18px;
+            padding: 16px 20px;
+            min-height: 56px;
+            border: 2px solid #90caf9;
+            border-radius: 15px;
+            background: white;
+            width: 100%;
+            margin-top: 12px;
+            box-sizing: border-box;
+            -webkit-appearance: none;
+            appearance: none;
+            transition: all 0.3s ease;
+        }
+
+        .file-input:focus, #presetFileSelect:focus {
+            outline: none;
+            border-color: #1565c0;
+            box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.1);
+        }
+
+        input[type="file"] {
+            font-size: 17px;
+            padding: 15px;
+        }
+
+        .preset-upload {
+            position: relative;
+        }
+
+        .preset-upload::after {
+            content: "";
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 8px solid #1565c0;
+            pointer-events: none;
+        }
+
+        /* 确保标签文字也足够大 */
+        .file-upload h3, .preset-upload h3 {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+        }
+
+        .file-upload p, .preset-upload p {
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            .file-input, #presetFileSelect {
+                font-size: 16px;
+                padding: 14px 18px;
+                min-height: 52px;
+            }
+            
+            .settings-panel {
+                gap: 20px;
+            }
+            
+            .file-upload, .preset-upload {
+                min-width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .file-input, #presetFileSelect {
+                font-size: 16px;
+                padding: 12px 16px;
+                min-height: 48px;
+            }
+            
+            input[type="file"] {
+                font-size: 14px;
+                padding: 10px;
+            }
+        }
+
+        @supports (-webkit-touch-callout: none) {
+            .file-input, #presetFileSelect {
+                font-size: 17px;
+                min-height: 54px;
+            }
+            
+            .file-input, #presetFileSelect, input[type="file"] {
+                cursor: pointer;
+                -webkit-tap-highlight-color: transparent;
+            }
+        }
+                /* 文件输入标签样式 */
+        .file-input-label {
+            display: block;
+            position: relative;
+            margin-top: 12px;
+            cursor: pointer;
+        }
+
+        .file-input {
+            opacity: 0;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            cursor: pointer;
+        }
+
+        .file-input-text {
+            display: block;
+            padding: 16px 20px;
+            background: #1565c0;
+            color: white;
+            border-radius: 15px;
+            text-align: center;
+            font-size: 18px;
+            min-height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .file-input-text:hover {
+            background: #1976d2;
+            transform: translateY(-2px);
+        }
+
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            .file-input-text {
+                padding: 14px 18px;
+                font-size: 16px;
+                min-height: 52px;
+            }
+        }
+
+        @supports (-webkit-touch-callout: none) {
+            .file-input-text {
+                min-height: 54px;
+            }
+            
+            .file-input-text:active {
+                background: #0d47a1;
+                transform: scale(0.98);
+            }
+        }
+        /* 直接针对现有元素添加样式 */
+        #fileInput, #presetFileSelect {
+            font-size: 18px;
+            padding: 16px 20px;
+            min-height: 56px;
+            border: 2px solid #90caf9;
+            border-radius: 15px;
+            background: white;
+            width: 100%;
+            margin-top: 12px;
+            box-sizing: border-box;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        #fileInput:focus, #presetFileSelect:focus {
+            outline: none;
+            border-color: #1565c0;
+            box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.1);
+        }
+
+        /* 下拉框箭头 */
+        .preset-upload {
+            position: relative;
+        }
+
+        .preset-upload::after {
+            content: "";
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 8px solid #1565c0;
+            pointer-events: none;
+        }
+
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            #fileInput, #presetFileSelect {
+                font-size: 16px;
+                padding: 14px 18px;
+                min-height: 52px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #fileInput, #presetFileSelect {
+                font-size: 16px;
+                padding: 12px 16px;
+                min-height: 48px;
+            }
+        }
+
+        @supports (-webkit-touch-callout: none) {
+            #fileInput, #presetFileSelect {
+                font-size: 17px;
+                min-height: 54px;
+                cursor: pointer;
+                -webkit-tap-highlight-color: transparent;
+            }
+				}
+		/* 动态样式 */
+		@keyframes fall {
+			0% {
+				transform: translateY(-100px) rotate(0deg);
+				opacity: 0.8;
+			}
+			100% {
+				transform: translateY(100vh) rotate(360deg);
+				opacity: 0;
+			}
+		}
+
+		@keyframes fadeIn {
+			from { opacity: 0; transform: translateY(8px); }
+			to { opacity: 1; transform: translateY(0); }
+		}
