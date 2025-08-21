@@ -132,13 +132,104 @@
             max-height: 200px;
             overflow-y: auto;
         }
+        /* 新增：下拉选择框样式 */
+        .file-selector {
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        .file-selector select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #3498db;
+            border-radius: 5px;
+            background-color: white;
+            font-size: 16px; /* 移动端友好 */
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url('data:image/svg+xml;utf8,<svg fill="%233498db" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+        }
+        .selector-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .refresh-btn {
+            background: none;
+            border: none;
+            color: #3498db;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+        }
+        .refresh-btn svg {
+            margin-right: 5px;
+        }
+        .or-divider {
+            text-align: center;
+            margin: 10px 0;
+            position: relative;
+        }
+        .or-divider:before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: 42%;
+            height: 1px;
+            background: #ddd;
+        }
+        .or-divider:after {
+            content: "";
+            position: absolute;
+            right: 0;
+            top: 50%;
+            width: 42%;
+            height: 1px;
+            background: #ddd;
+        }
+        @media (max-width: 600px) {
+            .game-container {
+                flex-direction: column;
+            }
+            .column {
+                width: 100%;
+                margin-bottom: 20px;
+            }
+        }
     </style>
 </head>
 <body>
-    <h1>英语单词配对和对话学习(Excel导入版)</h1>
+    <h1>英语单词配对和对话学习</h1>
+    
+    <!-- 新增：文件选择下拉框 -->
+    <div class="file-selector">
+        <div class="selector-header">
+            <h3>选择单词库文件</h3>
+            <button class="refresh-btn" id="refresh-list-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4C7.58 4 4.01 7.58 4.01 12C4.01 16.42 7.58 20 12 20C15.73 20 18.84 17.45 19.73 14H17.65C16.83 16.33 14.61 18 12 18C8.69 18 6 15.31 6 12C6 8.69 8.69 6 12 6C13.66 6 15.14 6.69 16.22 7.78L13 11H20V4L17.65 6.35Z" fill="#3498db"/>
+                </svg>
+                刷新列表
+            </button>
+        </div>
+        <select id="file-select">
+            <option value="">-- 请选择单词库文件 --</option>
+            <!-- 动态填充选项 -->
+        </select>
+    </div>
+    
+    <div class="or-divider">或</div>
     
     <div class="file-import">
-        <h3>导入单词库</h3>
+        <h3>上传自定义单词库</h3>
         <input type="file" id="excel-file" accept=".xlsx,.xls">
         <p>请上传Excel文件，第一列为英文（问句），第二列为中文（答句）</p>
         <p>支持单词或句子，标点符号将保留</p>
@@ -197,7 +288,7 @@
             totalGroups: 0,
             totalWords: 0,
             matchedPairs: 0,
-			originalFileName: '' // 新增：存储原始文件名（不含扩展名）
+            originalFileName: '' // 新增：存储原始文件名（不含扩展名）
         };
         
         // DOM元素
@@ -215,6 +306,85 @@
         const filePreview = document.getElementById('file-preview');
         const currentGroupDisplay = document.getElementById('current-group');
         const totalGroupsDisplay = document.getElementById('total-groups');
+        const fileSelect = document.getElementById('file-select'); // 新增：文件选择下拉框
+        const refreshListBtn = document.getElementById('refresh-list-btn'); // 新增：刷新列表按钮
+        
+        // 新增：配置文件列表的JSON文件路径
+        const FILE_LIST_URL = 'file-list.json';
+        
+        // 新增：加载文件列表
+        async function loadFileList() {
+            try {
+                const response = await fetch(FILE_LIST_URL);
+                if (!response.ok) {
+                    throw new Error('无法加载文件列表');
+                }
+                const fileList = await response.json();
+                
+                // 清空现有选项（保留第一个提示选项）
+                while (fileSelect.options.length > 1) {
+                    fileSelect.remove(1);
+                }
+                
+                // 添加文件选项
+                fileList.files.forEach(file => {
+                    const option = document.createElement('option');
+                    option.value = file.path;
+                    option.textContent = file.name;
+                    fileSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('加载文件列表失败:', error);
+                // 添加错误选项
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = '加载文件列表失败';
+                option.disabled = true;
+                fileSelect.appendChild(option);
+            }
+        }
+        
+        // 新增：从服务器加载Excel文件
+        async function loadExcelFile(filePath) {
+            try {
+                const response = await fetch(filePath);
+                if (!response.ok) {
+                    throw new Error('无法加载文件');
+                }
+                const arrayBuffer = await response.arrayBuffer();
+                return arrayBuffer;
+            } catch (error) {
+                console.error('加载Excel文件失败:', error);
+                alert('加载Excel文件失败，请检查文件路径');
+                throw error;
+            }
+        }
+        
+        // 修改：解析Excel文件（现在可以接受ArrayBuffer）
+        function parseExcelData(data, fileName) {
+            try {
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                
+                // 获取第一列(英文)和第二列(中文)
+                const wordPairs = jsonData
+                    .filter(row => row.length >= 2 && row[0] && row[1])
+                    .map(row => ({
+                        english: String(row[0]).trim(),
+                        chinese: String(row[1]).trim()
+                    }));
+                
+                return {
+                    wordPairs: wordPairs,
+                    fileName: fileName
+                };
+            } catch (error) {
+                console.error('解析Excel数据失败:', error);
+                alert('解析Excel文件失败，请检查文件格式是否正确');
+                throw error;
+            }
+        }
         
         // 显示文件预览(只显示前5行)
         function showFilePreview(wordPairs) {
@@ -277,32 +447,30 @@
             filePreview.appendChild(countInfo);
         }
         
-        // 解析Excel文件
-        function parseExcelFile(file) {
+        // 修改：解析Excel文件（现在可以接受File或路径）
+        async function parseExcelFile(fileOrPath) {
+            let arrayBuffer;
+            let fileName;
+            
+            if (fileOrPath instanceof File) {
+                // 处理上传的文件
+                arrayBuffer = await readFileAsArrayBuffer(fileOrPath);
+                fileName = fileOrPath.name.replace(/\.[^/.]+$/, "");
+            } else {
+                // 处理服务器上的文件
+                arrayBuffer = await loadExcelFile(fileOrPath);
+                fileName = fileOrPath.split('/').pop().replace(/\.[^/.]+$/, "");
+            }
+            
+            return parseExcelData(arrayBuffer, fileName);
+        }
+        
+        // 辅助函数：将File对象读取为ArrayBuffer
+        function readFileAsArrayBuffer(file) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    try {
-                        const data = new Uint8Array(e.target.result);
-                        const workbook = XLSX.read(data, { type: 'array' });
-                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-                        
-                        // 获取第一列(英文)和第二列(中文)
-                        const wordPairs = jsonData
-                            .filter(row => row.length >= 2 && row[0] && row[1])
-                            .map(row => ({
-                                english: String(row[0]).trim(),
-                                chinese: String(row[1]).trim()
-                            }));
-                        
-                        resolve({
-								wordPairs: wordPairs, // 单词对数组
-								fileName: file.name.replace(/\.[^/.]+$/, "") // 新增：移除扩展名的文件名
-								});
-                    } catch (error) {
-                        reject(error);
-                    }
+                    resolve(e.target.result);
                 };
                 reader.onerror = reject;
                 reader.readAsArrayBuffer(file);
@@ -310,7 +478,7 @@
         }
         
         // 初始化游戏
-        function initGame(wordPairs,fileName) {
+        function initGame(wordPairs, fileName) {
             if (!wordPairs || wordPairs.length === 0) {
                 alert('请先导入有效的Excel文件');
                 return false;
@@ -331,7 +499,7 @@
                 totalGroups: Math.ceil(wordPairs.length / 5),
                 totalWords: wordPairs.length,
                 matchedPairs: 0,
-				originalFileName: fileName
+                originalFileName: fileName
             };
             
             // 显示文件预览(前5行)
@@ -400,7 +568,7 @@
                 card.dataset.index = index;
                 card.addEventListener('click', function() {
                     
-					// 点击英文单词时朗读
+                    // 点击英文单词时朗读
                     speakWord(pair.english);
                     
                     // 如果没有选中中文卡片，可以切换选择其他英文卡片
@@ -412,8 +580,7 @@
                         card.classList.add('selected');
                     } else {
                         // 已经选中了中文卡片，尝试配对
-                        //handleCardClick(event);
-						handleCardSelection(card, pair.english);
+                        handleCardSelection(card, pair.english);
                     }
                 });
                 englishColumn.appendChild(card);
@@ -437,7 +604,7 @@
                 card.dataset.index = index;
                 card.addEventListener('click', function() {
                     
-					// 如果没有选中英文卡片，可以切换选择其他中文卡片
+                    // 如果没有选中英文卡片，可以切换选择其他中文卡片
                     if (!gameState.selectedCard || gameState.selectedCard.parentElement === chineseColumn) {
                         if (gameState.selectedCard) {
                             gameState.selectedCard.classList.remove('selected');
@@ -446,8 +613,7 @@
                         card.classList.add('selected');
                     } else {
                         // 已经选中了英文卡片，尝试配对
-                        //handleCardClick(event);
-						handleCardSelection(card);
+                        handleCardSelection(card);
                     }
                 });
                 chineseColumn.appendChild(card);
@@ -624,16 +790,16 @@
             // 获取当前时间并格式化为文件名
             const now = new Date();
             const timeStr = [
-			now.getFullYear(),
-			String(now.getMonth() + 1).padStart(2, '0'),
-			String(now.getDate()).padStart(2, '0'),
-			'_',
-			String(now.getHours()).padStart(2, '0'),
-			String(now.getMinutes()).padStart(2, '0'),
-			String(now.getSeconds()).padStart(2, '0')
-		].join('');
+                now.getFullYear(),
+                String(now.getMonth() + 1).padStart(2, '0'),
+                String(now.getDate()).padStart(2, '0'),
+                '_',
+                String(now.getHours()).padStart(2, '0'),
+                String(now.getMinutes()).padStart(2, '0'),
+                String(now.getSeconds()).padStart(2, '0')
+            ].join('');
             
-             const fileName = `${gameState.originalFileName}_错题本_${timeStr}.xlsx`;
+            const fileName = `${gameState.originalFileName}_错题本_${timeStr}.xlsx`;
             
             // 准备数据
             const data = [
@@ -648,12 +814,12 @@
             // 创建工作簿
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.aoa_to_sheet(data);
-			// 设置列宽
-			ws['!cols'] = [
-			{ wch: 30 }, // 英文列
-			{ wch: 30 }, // 错误选择列
-			{ wch: 30 }  // 正确答案列
-			];
+            // 设置列宽
+            ws['!cols'] = [
+                { wch: 30 }, // 英文列
+                { wch: 30 }, // 错误选择列
+                { wch: 30 }  // 正确答案列
+            ];
             XLSX.utils.book_append_sheet(wb, ws, "错题本");
             
             // 生成Excel文件并下载
@@ -752,6 +918,39 @@
             }
         });
         
+        // 新增：文件选择下拉框事件监听
+        fileSelect.addEventListener('change', async function() {
+            const selectedFile = this.value;
+            if (!selectedFile) return;
+            
+            try {
+                // 显示加载中状态
+                filePreview.innerHTML = '<p>加载中...</p>';
+                
+                const result = await parseExcelFile(selectedFile);
+                if (result.wordPairs.length === 0) {
+                    alert('选中的文件中没有有效的单词对，请检查文件内容');
+                    return;
+                }
+                
+                // 显示预览
+                showFilePreview(result.wordPairs);
+                
+                // 初始化游戏
+                if (!initGame(result.wordPairs, result.fileName)) {
+                    return;
+                }
+            } catch (error) {
+                console.error('加载文件失败:', error);
+                filePreview.innerHTML = '<p>加载文件失败，请重试</p>';
+            }
+        });
+        
+        // 新增：刷新列表按钮事件监听
+        refreshListBtn.addEventListener('click', function() {
+            loadFileList();
+        });
+        
         restartBtn.addEventListener('click', () => {
             if (gameState.wordPairs.length > 0) {
                 initGame(gameState.wordPairs, gameState.originalFileName);
@@ -761,6 +960,9 @@
         });
         
         endGameBtn.addEventListener('click', endGame);
+        
+        // 初始化：加载文件列表
+        loadFileList();
     </script>
 </body>
 </html>
