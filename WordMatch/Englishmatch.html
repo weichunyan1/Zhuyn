@@ -195,6 +195,20 @@
             height: 1px;
             background: #ddd;
         }
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 5px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
         @media (max-width: 600px) {
             .game-container {
                 flex-direction: column;
@@ -224,6 +238,9 @@
             <option value="">-- 请选择单词库文件 --</option>
             <!-- 动态填充选项 -->
         </select>
+        <div id="loading-indicator" style="display: none; margin-top: 10px;">
+            <span class="loading"></span> 正在加载文件列表...
+        </div>
     </div>
     
     <div class="or-divider">或</div>
@@ -308,6 +325,7 @@
         const totalGroupsDisplay = document.getElementById('total-groups');
         const fileSelect = document.getElementById('file-select'); // 新增：文件选择下拉框
         const refreshListBtn = document.getElementById('refresh-list-btn'); // 新增：刷新列表按钮
+        const loadingIndicator = document.getElementById('loading-indicator'); // 新增：加载指示器
         
         // 新增：配置文件列表的JSON文件路径
         const FILE_LIST_URL = 'file-list.json';
@@ -315,9 +333,11 @@
         // 新增：加载文件列表
         async function loadFileList() {
             try {
+                loadingIndicator.style.display = 'block';
+                
                 const response = await fetch(FILE_LIST_URL);
                 if (!response.ok) {
-                    throw new Error('无法加载文件列表');
+                    throw new Error(`无法加载文件列表: ${response.status} ${response.statusText}`);
                 }
                 const fileList = await response.json();
                 
@@ -327,12 +347,20 @@
                 }
                 
                 // 添加文件选项
-                fileList.files.forEach(file => {
+                if (fileList.files && fileList.files.length > 0) {
+                    fileList.files.forEach(file => {
+                        const option = document.createElement('option');
+                        option.value = file.path;
+                        option.textContent = file.name;
+                        fileSelect.appendChild(option);
+                    });
+                } else {
                     const option = document.createElement('option');
-                    option.value = file.path;
-                    option.textContent = file.name;
+                    option.value = '';
+                    option.textContent = '没有可用的文件';
+                    option.disabled = true;
                     fileSelect.appendChild(option);
-                });
+                }
             } catch (error) {
                 console.error('加载文件列表失败:', error);
                 // 添加错误选项
@@ -341,6 +369,8 @@
                 option.textContent = '加载文件列表失败';
                 option.disabled = true;
                 fileSelect.appendChild(option);
+            } finally {
+                loadingIndicator.style.display = 'none';
             }
         }
         
@@ -349,13 +379,13 @@
             try {
                 const response = await fetch(filePath);
                 if (!response.ok) {
-                    throw new Error('无法加载文件');
+                    throw new Error(`无法加载文件: ${response.status} ${response.statusText}`);
                 }
                 const arrayBuffer = await response.arrayBuffer();
                 return arrayBuffer;
             } catch (error) {
                 console.error('加载Excel文件失败:', error);
-                alert('加载Excel文件失败，请检查文件路径');
+                alert(`加载Excel文件失败: ${error.message}`);
                 throw error;
             }
         }
