@@ -64,7 +64,7 @@
             gap: 15px;
         }
         
-        .file-upload, .time-setting {
+        .file-upload, .preset-upload, .time-setting {
             background: #e3f2fd;
             padding: 15px;
             border-radius: 15px;
@@ -531,15 +531,23 @@
                 <p>请选择包含形近字组的TXT文件（一行一组）</p>
                 <input type="file" id="fileInput" class="file-input" accept=".txt">
             </div>
-            
-            <div class="time-setting">
-                <h3>选择记忆时间</h3>
-                <div class="time-options">
-                    <div class="time-option" data-time="0.5">0.5秒</div>
-                    <div class="time-option active" data-time="1">1秒</div>
-                    <div class="time-option" data-time="2">2秒</div>
-                    <div class="time-option" data-time="3">3秒</div>
-                </div>
+            <div class="preset-upload">
+                <h3>或选择预设信息库</h3>
+                <select id="presetFileSelect" class="file-input">
+                    <option value="">-- 请选择预设信息库 --</option>
+                </select>
+                
+                <div id="presetStatus" style="margin-top: 6px; color: #546e7a; font-size: 0.9rem;"></div>
+            </div>
+        </div>
+        
+        <div class="time-setting">
+            <h3>选择记忆时间</h3>
+            <div class="time-options">
+                <div class="time-option" data-time="0.5">0.5秒</div>
+                <div class="time-option active" data-time="1">1秒</div>
+                <div class="time-option" data-time="2">2秒</div>
+                <div class="time-option" data-time="3">3秒</div>
             </div>
         </div>
         
@@ -631,6 +639,8 @@
         const closeReport = document.getElementById('closeReport');
         const fileInput = document.getElementById('fileInput');
         const timeOptions = document.querySelectorAll('.time-option');
+        const presetFileSelect = document.getElementById('presetFileSelect');
+        const presetStatus = document.getElementById('presetStatus');
         
         // 游戏变量
         let characterGroups = [];
@@ -652,6 +662,7 @@
         let answerHistory = [];
         let memoryTime = 1; // 默认记忆时间改为1秒
         let timeOptionsEnabled = true; // 控制时间选项是否可用
+        let presetFileItems = [];
         
         // 初始化游戏
         function initGame() {
@@ -1056,6 +1067,64 @@
             }
         }
         
+        // 获取并刷新预设文件列表
+        async function refreshPresetFiles() {
+            if (!presetStatus) return;
+            presetStatus.textContent = '正在加载预设列表…';
+            try {
+                const res = await fetch('file/files.json', { cache: 'no-store' });
+                if (!res.ok) throw new Error(`读取失败(${res.status})`);
+                const items = await res.json();
+                presetFileItems = items.map(it => ({
+                    name: it.name,
+                    path: it.path || `file/${it.name}`
+                }));
+                // 填充下拉框
+                if (presetFileSelect) {
+                    presetFileSelect.innerHTML = '<option value="">-- 请选择预设信息库 --</option>';
+                    presetFileItems.forEach((it, idx) => {
+                        const opt = document.createElement('option');
+                        opt.value = String(idx);
+                        opt.textContent = it.name;
+                        presetFileSelect.appendChild(opt);
+                    });
+                }
+                presetStatus.textContent = `已加载 ${presetFileItems.length} 个预设`;
+            } catch (e) {
+                console.error(e);
+                presetStatus.textContent = '无法加载预设列表，请稍后重试';
+            }
+        }
+        
+        // 从下拉选择加载预设
+        async function loadPresetFromSelect() {
+            if (!presetFileSelect) return;
+            const idxStr = presetFileSelect.value;
+            if (!idxStr) {
+                feedback.textContent = "请先选择一个预设文件";
+                feedback.className = "feedback incorrect";
+                return;
+            }
+            const idx = parseInt(idxStr, 10);
+            const item = presetFileItems[idx];
+            if (!item) return;
+            try {
+                const res = await fetch(item.path, { cache: 'no-store' });
+                if (!res.ok) throw new Error(`读取失败(${res.status})`);
+                const content = await res.text();
+                processFileContent(content);
+                // 清空手动文件选择，避免混淆
+                if (fileInput) fileInput.value = '';
+                feedback.textContent = `已加载预设：${item.name}`;
+                feedback.className = "feedback correct";
+                startBtn.disabled = false;
+            } catch (e) {
+                console.error(e);
+                feedback.textContent = `加载预设失败：${item.name}`;
+                feedback.className = "feedback incorrect";
+            }
+        }
+        
         // 设置记忆时间
         function setMemoryTime(time) {
             if (!timeOptionsEnabled) return; // 如果时间选项被禁用，则不执行
@@ -1135,9 +1204,17 @@
             });
         });
         
+        if (presetFileSelect) {
+            presetFileSelect.addEventListener('change', () => {
+                loadPresetFromSelect();
+            });
+        }
+        
         // 初始化游戏
         initGame();
         startBtn.disabled = true;
+        // 加载预设列表（用于移动端快速使用）
+        refreshPresetFiles();
     </script>
 </body>
 </html>
