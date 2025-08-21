@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>形近字学习助手</title>
     <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.6.0/style.css">
     <style>
         * {
             margin: 0;
@@ -184,6 +185,14 @@
             font-weight: normal;
         }
         
+        /* 针对iOS设备的特殊样式 */
+        @supports (-webkit-touch-callout: none) {
+            .target-character,
+            .option {
+                font-family: "PingFang SC", "Hiragino Sans GB", "楷体", "KaiTi", serif;
+            }
+        }
+
         .option:hover {
             transform: translateY(-5px);
             box-shadow: 0 8px 20px rgba(0,0,0,0.15);
