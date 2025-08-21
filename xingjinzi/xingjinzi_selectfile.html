@@ -680,6 +680,71 @@
                 transform: scale(0.98);
             }
         }
+        /* 直接针对现有元素添加样式 */
+        #fileInput, #presetFileSelect {
+            font-size: 18px;
+            padding: 16px 20px;
+            min-height: 56px;
+            border: 2px solid #90caf9;
+            border-radius: 15px;
+            background: white;
+            width: 100%;
+            margin-top: 12px;
+            box-sizing: border-box;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        #fileInput:focus, #presetFileSelect:focus {
+            outline: none;
+            border-color: #1565c0;
+            box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.1);
+        }
+
+        /* 下拉框箭头 */
+        .preset-upload {
+            position: relative;
+        }
+
+        .preset-upload::after {
+            content: "";
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 8px solid #1565c0;
+            pointer-events: none;
+        }
+
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            #fileInput, #presetFileSelect {
+                font-size: 16px;
+                padding: 14px 18px;
+                min-height: 52px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #fileInput, #presetFileSelect {
+                font-size: 16px;
+                padding: 12px 16px;
+                min-height: 48px;
+            }
+        }
+
+        @supports (-webkit-touch-callout: none) {
+            #fileInput, #presetFileSelect {
+                font-size: 17px;
+                min-height: 54px;
+                cursor: pointer;
+                -webkit-tap-highlight-color: transparent;
+            }
+        }
     </style>
 </head>
 <body>
