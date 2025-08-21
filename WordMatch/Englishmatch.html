@@ -336,7 +336,7 @@
         // 获取预设文件列表（从 JSON 加载）
         async function getPresetFileList() {
             try {
-                const res = await fetch('words/files.json', { cache: 'no-store' });
+                const res = await fetch('words/files-list.json', { cache: 'no-store' });
                 if (!res.ok) throw new Error(`配置文件读取失败(${res.status})`);
                 const items = await res.json();
                 // 兼容只提供 name 的旧格式
