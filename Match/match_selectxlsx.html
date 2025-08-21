@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>配对练习(选择文件版)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .game-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .column {
+            width: 48%;
+            min-height: 300px;
+            border: 2px solid #3498db;
+            border-radius: 5px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+        .word-card {
+            background-color: #f1c40f;
+            color: #2c3e50;
+            padding: 10px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            font-weight: bold;
+            transition: all 0.3s;
+            flex: 0 0 auto;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .word-card:hover {
+            background-color: #f39c12;
+        }
+        .word-card.selected {
+            background-color: #e74c3c;
+            color: white;
+        }
+        .stats {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: white;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        .mistakes {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #e74c3c;
+            color: white;
+            border-radius: 5px;
+            display: none;
+        }
+        button {
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #27ae60;
+        }
+        button.secondary {
+            background-color: #e74c3c;
+        }
+        button.secondary:hover {
+            background-color: #c0392b;
+        }
+        .feedback {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2em;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.5s;
+            z-index: 100;
+        }
+        .correct-feedback {
+            color: #2ecc71;
+        }
+        .wrong-feedback {
+            color: #e74c3c;
+        }
+        .group-info {
+            margin: 10px 0;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .file-import {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            border: 1px dashed #ccc;
+        }
+        .file-import p {
+            margin: 5px 0;
+            font-size: 0.9em;
+            color: #666;
+        }
+        .preview-area {
+            margin-top: 15px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        select {
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>配对练习(选择文件版)</h1>
+    
+    <div class="file-import">
+        <h3>选择信息库</h3>
+        <select id="word-file-select">
+            <option value="">加载中...</option>
+        </select>
+        <p>请从下拉菜单中选择预置的信息库文件</p>
+		
+	<!--    预览
+		<div class="preview-area" id="file-preview">
+        <p>文件内容将显示在这里...</p>
+        </div> 
+	-->
+		
+    </div>
+    
+    <div class="group-info">
+        当前组别: <span id="current-group">-</span>/<span id="total-groups">-</span>
+    </div>
+    
+    <div class="game-container">
+        <div id="left-column" class="column">
+            <h2>左边</h2>
+        </div>
+        <div id="right-column" class="column">
+            <h2>右边</h2>
+        </div>
+    </div>
+    
+    <div class="stats">
+        <p>剩余配对: <span id="remaining">-</span>/<span id="total-words">-</span></p>
+        <p>正确: <span id="correct">0</span> | 错误: <span id="wrong">0</span></p>
+    </div>
+    
+    <div id="mistakes" class="mistakes">
+        <h3>错题本</h3>
+        <ul id="mistakes-list"></ul>
+    </div>
+    
+    <button id="restart-btn">重新开始</button>
+    <button id="end-game-btn" class="secondary">结束游戏</button>
+    
+    <!-- 反馈提示 -->
+    <div id="correct-feedback" class="feedback correct-feedback">✓ 正确!</div>
+    <div id="wrong-feedback" class="feedback wrong-feedback">✗ 错误!</div>
+    
+    <!-- 音频元素 -->
+    <audio id="correct-sound" src="https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3" preload="auto"></audio>
+    <audio id="wrong-sound" src="https://assets.mixkit.co/sfx/preview/mixkit-wrong-answer-fail-notification-946.mp3" preload="auto"></audio>
+    
+    <script>
+        // 游戏状态
+        let gameState = {
+            wordPairs: [],
+            remainingPairs: [],
+            leftCards: [],
+            rightCards: [],
+            selectedCard: null,
+            totalCorrectCount: 0,
+            currentGroupCorrectCount: 0,
+            wrongCount: 0,
+            mistakes: [],
+            currentGroup: 0,
+            totalGroups: 0,
+            totalWords: 0,
+            matchedPairs: 0,
+			originalFileName: '' // 新增：存储原始文件名（不含扩展名）
+        };
+        
+        // DOM元素
+        const leftColumn = document.getElementById('left-column');
+        const rightColumn = document.getElementById('right-column');
+        const remainingDisplay = document.getElementById('remaining');
+        const totalWordsDisplay = document.getElementById('total-words');
+        const correctDisplay = document.getElementById('correct');
+        const wrongDisplay = document.getElementById('wrong');
+        const mistakesDiv = document.getElementById('mistakes');
+        const mistakesList = document.getElementById('mistakes-list');
+        const restartBtn = document.getElementById('restart-btn');
+        const endGameBtn = document.getElementById('end-game-btn');
+        const filePreview = document.getElementById('file-preview');
+        const currentGroupDisplay = document.getElementById('current-group');
+        const totalGroupsDisplay = document.getElementById('total-groups');
+        const wordFileSelect = document.getElementById('word-file-select');
+        
+		// 获取words目录下的Excel文件列表
+		async function getWordFileList() {
+			try {
+				const response = await fetch('/words/list');
+				if (!response.ok) {
+            throw new Error('获取文件列表失败');
+			}
+			return await response.json();
+			} catch (error) {
+				console.error('获取信息文件列表失败:', error);
+			throw error;
+			}
+			}        
+        // 初始化单词文件选择下拉框
+                async function initWordFileSelect() {
+            try {
+                const wordFiles = await getWordFileList();
+                wordFileSelect.innerHTML = '';
+                
+                if (wordFiles.length === 0) {
+                    wordFileSelect.innerHTML = '<option value="">没有信息文件可选</option>';
+                    return;
+                }
+                
+                // 添加默认提示选项
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = '-- 请选择信息库 --';
+                wordFileSelect.appendChild(defaultOption);
+                
+                // 添加单词库选项
+                wordFiles.forEach(file => {
+                    const option = document.createElement('option');
+                    option.value = file;
+                    option.textContent = file.replace(/\.xlsx?$/i, '');
+                    wordFileSelect.appendChild(option);
+                });
+                
+                // 添加事件监听
+                wordFileSelect.addEventListener('change', async function() {
+                    const selectedFile = this.value;
+                    if (!selectedFile) return;
+                    
+                    try {
+                        const wordPairs = await loadWordFile(selectedFile);
+                        //showFilePreview(wordPairs);
+                        initGame(wordPairs,selectedFile);  // 传入文件名
+                    } catch (error) {
+                        alert('加载信息库失败: ' + error.message);
+                    }
+                });
+            } catch (error) {
+                wordFileSelect.innerHTML = '<option value="">加载信息库列表失败</option>';
+                console.error('获取信息文件列表失败:', error);
+            }
+        }
+        
+        // 模拟加载选中的单词文件
+        // 替换原来的模拟函数
+		async function loadWordFile(filename) {
+			try {
+				const response = await fetch(`/words/get?file=${encodeURIComponent(filename)}`);
+				if (!response.ok) {
+            throw new Error('加载信息文件失败');
+			}
+			return await response.json();
+			} catch (error) {
+			console.error('加载信息文件失败:', error);
+			throw error;
+    }
+}
+        /* 不要预览
+        // 显示文件预览(只显示前2行)
+        function showFilePreview(wordPairs) {
+            filePreview.innerHTML = '';
+            
+            if (!wordPairs || wordPairs.length === 0) {
+                filePreview.innerHTML = '<p>没有可显示的内容</p>';
+                return;
+            }
+            
+            const table = document.createElement('table');
+            table.style.width = '100%';
+            table.style.borderCollapse = 'collapse';
+            
+            // 添加表头
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            ['左边', '右边'].forEach(text => {
+                const th = document.createElement('th');
+                th.textContent = text;
+                th.style.border = '1px solid #ddd';
+                th.style.padding = '8px';
+                th.style.textAlign = 'left';
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+            
+            // 添加内容(只显示前2行)
+            const tbody = document.createElement('tbody');
+            wordPairs.slice(0, 2).forEach(pair => {
+                const row = document.createElement('tr');
+                
+                [pair.left, pair.right].forEach(text => {
+                    const td = document.createElement('td');
+                    td.textContent = text;
+                    td.style.border = '1px solid #ddd';
+                    td.style.padding = '8px';
+                    row.appendChild(td);
+                });
+                
+                tbody.appendChild(row);
+            });
+            
+            table.appendChild(tbody);
+            filePreview.appendChild(table);
+            
+            if (wordPairs.length >2) {
+                const info = document.createElement('p');
+                info.textContent = `...还有 ${wordPairs.length - 2} 行未显示`;
+                info.style.marginTop = '10px';
+                info.style.textAlign = 'center';
+                filePreview.appendChild(info);
+            }
+            
+            const countInfo = document.createElement('p');
+            countInfo.textContent = `共找到 ${wordPairs.length} 个单词/句子对`;
+            countInfo.style.marginTop = '10px';
+            countInfo.style.fontWeight = 'bold';
+            filePreview.appendChild(countInfo);
+        }
+		*/ //不要预览
+        
+        // 初始化游戏
+        function initGame(wordPairs,fileName) {
+            if (!wordPairs || wordPairs.length === 0) {
+                alert('请先选择有效的子信息库');
+                return false;
+            }
+            
+            // 重置游戏状态
+            gameState = {
+                wordPairs: [...wordPairs],
+                remainingPairs: [],
+                leftCards: [],
+                rightCards: [],
+                selectedCard: null,
+                totalCorrectCount: 0,
+                currentGroupCorrectCount: 0,
+                wrongCount: 0,
+                mistakes: [],
+                currentGroup: 1,
+                totalGroups: Math.ceil(wordPairs.length / 5),
+                totalWords: wordPairs.length,
+                matchedPairs: 0,
+				originalFileName: fileName.replace(/\.xlsx?$/i, '') // 保存无后缀的文件名
+            };
+            
+            // 更新统计显示
+            totalGroupsDisplay.textContent = gameState.totalGroups;
+            totalWordsDisplay.textContent = gameState.totalWords;
+            
+            // 清空列
+            leftColumn.innerHTML = '<h2>左边</h2>';
+            rightColumn.innerHTML = '<h2>右边</h2>';
+            
+            // 隐藏错题本
+            mistakesDiv.style.display = 'none';
+            mistakesList.innerHTML = '';
+            
+            // 加载第一组单词
+            loadCurrentGroup();
+            
+            // 更新统计
+            updateStats();
+            
+            return true;
+        }
+        
+        // 加载当前组的单词
+        function loadCurrentGroup() {
+            if (gameState.currentGroup > gameState.totalGroups) {
+                endGame();
+                return;
+            }
+            
+            currentGroupDisplay.textContent = gameState.currentGroup;
+            
+            // 清空列
+            leftColumn.innerHTML = '<h2>左边</h2>';
+            rightColumn.innerHTML = '<h2>右边</h2>';
+            
+            // 重置选择状态
+            gameState.selectedCard = null;
+            
+            // 重置当前组正确计数
+            gameState.currentGroupCorrectCount = 0;
+            
+            // 设置当前组的单词
+            const startIdx = (gameState.currentGroup - 1) * 5;
+            const endIdx = Math.min(startIdx + 5, gameState.wordPairs.length);
+            gameState.remainingPairs = gameState.wordPairs.slice(startIdx, endIdx);
+            
+            // 创建卡片
+            createCards();
+        }
+        
+        // 创建卡片
+        function createCards() {
+            // 打乱顺序
+            shuffleArray(gameState.remainingPairs);
+            
+            // 创建左边卡片
+            gameState.leftCards = [];
+            gameState.remainingPairs.forEach((pair, index) => {
+                const card = document.createElement('div');
+                card.className = 'word-card';
+                card.textContent = pair.left;
+                card.dataset.index = index;
+                card.addEventListener('click', function() {
+					// 点击英文单词时朗读
+                   // speakWord(pair.left);
+                    
+                    // 如果没有选中右边卡片，可以切换选择其他左边卡片
+                    if (!gameState.selectedCard || gameState.selectedCard.parentElement === leftColumn) {
+                        if (gameState.selectedCard) {
+                            gameState.selectedCard.classList.remove('selected');
+                        }
+                        gameState.selectedCard = card;
+                        card.classList.add('selected');
+                    } else {
+                        // 已经选中了右边卡片，尝试配对                  
+						handleCardSelection(card, pair.left);
+                    }                   
+                });
+                leftColumn.appendChild(card);
+                gameState.leftCards.push({
+                    element: card,
+                    pairIndex: index,
+                    left: pair.left,
+                    right: pair.right
+                });
+            });
+            
+            // 创建右边卡片（再次打乱）
+            const shuffledright = [...gameState.remainingPairs];
+            shuffleArray(shuffledright);
+            
+            gameState.rightCards = [];
+            shuffledright.forEach((pair, index) => {
+                const card = document.createElement('div');
+                card.className = 'word-card';
+                card.textContent = pair.right;
+                card.dataset.index = index;
+                card.addEventListener('click', function() {
+					// 如果没有选中左边卡片，可以切换选择其他右边卡片
+                    if (!gameState.selectedCard || gameState.selectedCard.parentElement === rightColumn) {
+                        if (gameState.selectedCard) {
+                            gameState.selectedCard.classList.remove('selected');
+                        }
+                        gameState.selectedCard = card;
+                        card.classList.add('selected');
+                    } else {
+                        // 已经选中了左边卡片，尝试配对
+						handleCardSelection(card);
+                    }
+                });
+                rightColumn.appendChild(card);
+                gameState.rightCards.push({
+                    element: card,
+                    pairIndex: gameState.remainingPairs.findIndex(p => p.right === pair.right),
+                    left: pair.left,
+                    right: pair.right
+                });
+            });
+        }
+        
+        // 处理卡片选择
+        function handleCardSelection(card, leftText) {
+            /* 去掉朗读
+			if (leftText) {
+                // 如果是英文卡片，朗读内容
+                speakWord(leftText);
+            }
+            */
+			
+            // 如果已经选中了一张卡片
+            if (gameState.selectedCard) {
+                // 检查是否匹配
+                const isMatch = checkMatch(gameState.selectedCard, card);
+                
+                // 如果是同一张卡片，不做任何操作
+                if (gameState.selectedCard === card) {
+                    return;
+                }
+                
+                // 处理匹配结果
+                if (isMatch) {
+                    handleCorrectMatch(gameState.selectedCard, card);
+                    showFeedback(true);
+                } else {
+                    handleWrongMatch(gameState.selectedCard, card);
+                    showFeedback(false);
+                }
+                
+                // 重置选中状态
+                gameState.selectedCard.classList.remove('selected');
+                gameState.selectedCard = null;
+                
+                // 检查游戏是否结束
+                checkGameEnd();
+            } else {
+                // 如果没有选中卡片，选中当前卡片
+                gameState.selectedCard = card;
+                card.classList.add('selected');
+            }
+        }
+        
+        // 检查是否匹配
+        function checkMatch(card1, card2) {
+            // 确定哪张是左边，哪张是右边
+            let leftCard, rightCard;
+            if (card1.parentElement === leftColumn) {
+                leftCard = card1;
+                rightCard = card2;
+            } else {
+                leftCard = card2;
+                rightCard = card1;
+            }
+            
+            // 获取对应的pairIndex
+            const leftIndex = gameState.leftCards.find(c => c.element === leftCard).pairIndex;
+            const rightIndex = gameState.rightCards.find(c => c.element === rightCard).pairIndex;
+            
+            return leftIndex === rightIndex;
+        }
+        
+        // 处理正确匹配
+        function handleCorrectMatch(card1, card2) {
+            // 直接隐藏卡片
+            card1.style.display = 'none';
+            card2.style.display = 'none';
+            
+            // 更新统计
+            gameState.totalCorrectCount++;
+            gameState.currentGroupCorrectCount++;
+            gameState.matchedPairs++;
+            updateStats();
+        }
+        
+        // 处理错误匹配
+        function handleWrongMatch(card1, card2) {
+            // 确定哪张是左边，哪张是右边
+            let leftCard, rightCard;
+            if (card1.parentElement === leftColumn) {
+                leftCard = card1;
+                rightCard = card2;
+            } else {
+                leftCard = card2;
+                rightCard = card1;
+            }
+            
+            // 获取对应的pairIndex
+            const leftIndex = gameState.leftCards.find(c => c.element === leftCard).pairIndex;
+            const rightIndex = gameState.rightCards.find(c => c.element === rightCard).pairIndex;
+            
+            // 记录错误
+            const leftWord = gameState.leftCards.find(c => c.element === leftCard).left;
+            const correctright = gameState.leftCards.find(c => c.element === leftCard).right;
+            const selectedright = gameState.rightCards.find(c => c.element === rightCard).right;
+            
+            const mistake = {
+                left: leftWord,
+                correctright: correctright,
+                selectedright: selectedright
+            };
+            gameState.mistakes.push(mistake);
+            
+            // 只取消选择
+            leftCard.classList.remove('selected');
+            rightCard.classList.remove('selected');
+            
+            // 更新统计
+            gameState.wrongCount++;
+            updateStats();
+        }
+        
+        // 更新统计
+        function updateStats() {
+            const remaining = gameState.totalWords - gameState.matchedPairs;
+            remainingDisplay.textContent = remaining;
+            correctDisplay.textContent = gameState.totalCorrectCount;
+            wrongDisplay.textContent = gameState.wrongCount;
+        }
+        
+        // 检查游戏是否结束
+        function checkGameEnd() {
+            // 检查当前组是否完成
+            if (gameState.currentGroupCorrectCount === gameState.remainingPairs.length) {
+                // 检查是否还有下一组
+                if (gameState.currentGroup < gameState.totalGroups) {
+                    // 加载下一组
+                    gameState.currentGroup++;
+                    gameState.leftCards = [];
+                    gameState.rightCards = [];
+                    loadCurrentGroup();
+                } else {
+                    // 游戏全部完成
+                    showMistakes();
+					downloadMistakes(); // 新增：游戏结束时自动下载错题本
+                }
+            }
+        }
+        
+        // 结束游戏并显示错题本
+        function endGame() {
+            showMistakes();
+			downloadMistakes(); // 新增：手动结束游戏时也下载错题本
+        }
+        
+        // 显示错题本
+        function showMistakes() {
+            if (gameState.mistakes.length > 0) {
+                mistakesDiv.style.display = 'block';
+                mistakesList.innerHTML = '';
+                gameState.mistakes.forEach(mistake => {
+                    const li = document.createElement('li');
+                    li.textContent = `${capitalizeFirstLetter(mistake.left)}---${mistake.selectedright}，正确：${mistake.correctright}`;
+                    mistakesList.appendChild(li);
+                });
+            } else {
+                mistakesDiv.style.display = 'block';
+                mistakesList.innerHTML = '<li>没有错误记录！</li>';
+            }
+        }
+		
+		// 新增：下载错题本功能
+        function downloadMistakes() {
+            if (gameState.mistakes.length === 0) return;
+            
+            // 获取当前时间并格式化为文件名
+            const now = new Date();
+            const timeStr = [
+			now.getFullYear(),
+			String(now.getMonth() + 1).padStart(2, '0'),
+			String(now.getDate()).padStart(2, '0'),
+			'_',
+			String(now.getHours()).padStart(2, '0'),
+			String(now.getMinutes()).padStart(2, '0'),
+			String(now.getSeconds()).padStart(2, '0')
+		].join('');
+            
+             const fileName = `${gameState.originalFileName}_错题本_${timeStr}.xlsx`;
+            
+            // 准备数据
+            const data = [
+                ['左边', '错误选择', '正确答案'], // 表头
+                ...gameState.mistakes.map(mistake => [
+                    mistake.left, 
+                    mistake.selectedright, 
+                    mistake.correctright
+                ])
+            ];
+            
+            // 创建工作簿
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(data);
+			
+			// 设置列宽
+			ws['!cols'] = [
+			{ wch: 30 }, // 英文列
+			{ wch: 30 }, // 错误选择列
+			{ wch: 30 }  // 正确答案列
+			];
+            XLSX.utils.book_append_sheet(wb, ws, "错题本");
+            
+            // 生成Excel文件并下载
+            XLSX.writeFile(wb, fileName);
+        }
+        
+        // 语音合成
+        const synth = window.speechSynthesis;
+        let voices = [];
+        
+        function loadVoices() {
+            voices = synth.getVoices();
+        }
+        
+        // 初始化时加载语音
+        if (synth.onvoiceschanged !== undefined) {
+            synth.onvoiceschanged = loadVoices;
+        }
+		
+		/* 去掉朗读功能
+        
+        // 朗读单词/句子
+        function speakWord(word) {
+            if (synth.speaking) {
+                synth.cancel();
+            }
+            
+            const utterance = new SpeechSynthesisUtterance(word);
+            
+            // 查找英式英语发音
+            const ukVoice = voices.find(voice => 
+                voice.lang.includes('en-GB') || voice.lang.includes('en-UK')
+            );
+            
+            if (ukVoice) {
+                utterance.voice = ukVoice;
+            } else {
+                // 如果没有英式发音，使用第一个英语发音
+                const enVoice = voices.find(voice => voice.lang.includes('en'));
+                if (enVoice) {
+                    utterance.voice = enVoice;
+                }
+            }
+            
+            synth.speak(utterance);
+        }
+		*/
+        
+        // 显示反馈
+        function showFeedback(isCorrect) {
+            const feedback = isCorrect ? document.getElementById('correct-feedback') : document.getElementById('wrong-feedback');
+            const sound = isCorrect ? document.getElementById('correct-sound') : document.getElementById('wrong-sound');
+            
+            feedback.style.opacity = '1';
+            sound.currentTime = 0;
+            sound.play();
+            
+            setTimeout(() => {
+                feedback.style.opacity = '0';
+            }, 1000);
+        }
+        
+        // 首字母大写
+        function capitalizeFirstLetter(string) {
+            return string.charAt(0).toUpperCase() + string.slice(1);
+        }
+        
+        // 辅助函数：打乱数组
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+        
+        // 事件监听
+        restartBtn.addEventListener('click', () => {
+            if (gameState.wordPairs.length > 0) {
+                initGame(gameState.wordPairs, gameState.originalFileName);
+            } else {
+                alert('请先选择信息库');
+            }
+        });
+        
+        endGameBtn.addEventListener('click', endGame);
+        
+        // 初始化单词文件选择下拉框
+        initWordFileSelect();
+    </script>
+</body>
+</html>

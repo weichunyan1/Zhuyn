@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>飞机大战UFO</title>
+  <style>
+    body {
+      background: #222;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    #game {
+      background: #111;
+      border: 4px solid #fff;
+      position: relative;
+      width: 90vw;
+      max-width: 500px;
+      height: 70vh;
+      max-height: 800px;
+      overflow: hidden;
+      display: inline-block;
+    }
+    #canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    #score {
+      color: #fff;
+      font-size: 2.2vw;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    #hp {
+      color: #0f0;
+      font-size: 2vw;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    #gameover {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #f44;
+      font-size: 3vw;
+      background: rgba(0,0,0,0.7);
+      padding: 3vw 5vw;
+      border-radius: 2vw;
+      display: none;
+      z-index: 10;
+    }
+    #restart {
+      display: block;
+      margin: 2vw auto 0 auto;
+      padding: 1vw 3vw;
+      font-size: 1.8vw;
+      border-radius: 0.8vw;
+      border: none;
+      background: #0af;
+      color: #fff;
+      cursor: pointer;
+    }
+    #restart-side {
+      position: absolute;
+      left: 100%;
+      top: 50%;
+      margin-left: 2vw;
+      transform: translateY(-50%);
+      background: #f00;
+      color: #fff;
+      border: none;
+      border-radius: 0.8vw;
+      font-size: 1.8vw;
+      padding: 1.6vw 2.4vw;
+      cursor: pointer;
+      z-index: 20;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      white-space: nowrap;
+    }
+    #fire-btn {
+      position: absolute;
+      left: -8vw;
+      bottom: 4vw;
+      width: 16vw;
+      height: 16vw;
+      min-width: 70px;
+      min-height: 70px;
+      max-width: 120px;
+      max-height: 120px;
+      background: radial-gradient(circle at 60% 40%, #0af 70%, #036 100%);
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      font-size: 2em;
+      font-weight: bold;
+      opacity: 0.85;
+      z-index: 25;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      touch-action: none;
+    }
+    #fire-btn::after {
+      content: '发射';
+      display: block;
+      width: 100%;
+      height: 100%;
+      text-align: center;
+      line-height: 16vw;
+      font-size: 2em;
+      font-weight: bold;
+    }
+    @media (pointer: coarse) {
+      #fire-btn { display: flex; }
+    }
+  </style>
+</head>
+<body>
+  <div style="display: flex; align-items: center; justify-content: center; flex-direction: column;">
+    <button id="restart-fixed" style="margin-bottom: 16px; background: #0af; color: #fff; border: none; border-radius: 8px; font-size: 1.2em; padding: 10px 20px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">重新开始</button>
+    <div style="position: relative;">
+      <div id="score">分数: 0</div>
+      <div id="game">
+        <button id="restart-side">重新开始</button>
+        <canvas id="canvas"></canvas>
+        <div id="gameover">
+          游戏结束<br>
+          <button id="restart">重新开始</button>
+        </div>
+      </div>
+      <button id="fire-btn"></button>
+    </div>
+  </div>
+  <script>
+    const game = document.getElementById('game');
+    const scoreEl = document.getElementById('score');
+    const gameoverEl = document.getElementById('gameover');
+    const restartBtn = document.getElementById('restart');
+    const canvas = document.getElementById('canvas');
+    let GAME_WIDTH, GAME_HEIGHT;
+    // 比例相关变量
+    let PLANE_WIDTH, PLANE_HEIGHT, UFO_WIDTH, UFO_HEIGHT, BULLET_SIZE;
+    // 游戏状态
+    let planeX, planeY, bullets, ufos, ufoBullets, score, hp, gameOver, ufoSpeed, bulletSpeed, moveLeft, moveRight, moveUp, moveDown;
+    let frameCount = 0;
+    let canShoot = true;
+    let explosions = [];
+
+    function updateGameSize() {
+      GAME_WIDTH = game.clientWidth;
+      GAME_HEIGHT = game.clientHeight;
+      canvas.width = GAME_WIDTH;
+      canvas.height = GAME_HEIGHT;
+      // 按比例设置元素尺寸
+      PLANE_WIDTH = GAME_WIDTH * 0.125;
+      PLANE_HEIGHT = GAME_HEIGHT * 0.083;
+      UFO_WIDTH = GAME_WIDTH * 0.1;
+      UFO_HEIGHT = GAME_HEIGHT * 0.04;
+      BULLET_SIZE = GAME_WIDTH * 0.04;
+    }
+    window.addEventListener('resize', updateGameSize);
+
+    function drawPlane(ctx, x, y) {
+      ctx.save();
+      ctx.translate(x + PLANE_WIDTH / 2, y + PLANE_HEIGHT / 2);
+      ctx.scale(PLANE_WIDTH / 50, PLANE_HEIGHT / 50);
+      ctx.fillStyle = '#f00';
+      ctx.beginPath();
+      ctx.moveTo(0, -25);
+      ctx.lineTo(12, 10);
+      ctx.lineTo(25, 18);
+      ctx.lineTo(8, 12);
+      ctx.lineTo(0, 25);
+      ctx.lineTo(-8, 12);
+      ctx.lineTo(-25, 18);
+      ctx.lineTo(-12, 10);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 7, 12, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      drawHpBar(ctx, x + PLANE_WIDTH * 0.1, y + PLANE_HEIGHT + 5, hp);
+    }
+    function drawUFO(ctx, x, y) {
+      ctx.save();
+      ctx.translate(x + UFO_WIDTH / 2, y + UFO_HEIGHT / 2);
+      ctx.scale(UFO_WIDTH / 40, UFO_HEIGHT / 24);
+      ctx.fillStyle = '#aaa';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 20, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#0f0';
+      ctx.beginPath();
+      ctx.arc(0, -5, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    function drawBullet(ctx, x, y, color) {
+      ctx.save();
+      ctx.translate(x + BULLET_SIZE / 2, y + BULLET_SIZE / 2);
+      ctx.scale(BULLET_SIZE / 16, BULLET_SIZE / 16);
+      if (color === '#ff0') {
+        ctx.fillStyle = '#0ff';
+        ctx.shadowColor = '#0ff';
+        ctx.shadowBlur = 10;
+        ctx.fillRect(-2, -12, 4, 24);
+      } else {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(0, 0, 8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+    function drawHpBar(ctx, x, y, hp) {
+      ctx.save();
+      const barW = PLANE_WIDTH * 0.8;
+      const barH = Math.max(4, PLANE_HEIGHT * 0.16);
+      ctx.fillStyle = '#222';
+      ctx.fillRect(x, y, barW, barH);
+      ctx.fillStyle = '#09f';
+      let barWidth = Math.max(0, Math.round((hp / 10) * barW));
+      ctx.fillRect(x, y, barWidth, barH);
+      ctx.strokeStyle = '#fff';
+      ctx.strokeRect(x, y, barW, barH);
+      ctx.restore();
+    }
+
+    function init() {
+      updateGameSize();
+      planeX = (GAME_WIDTH - PLANE_WIDTH) / 2;
+      planeY = GAME_HEIGHT - PLANE_HEIGHT - 10;
+      bullets = [];
+      ufos = [];
+      ufoBullets = [];
+      score = 0;
+      hp = 10;
+      gameOver = false;
+      ufoSpeed = GAME_HEIGHT * 0.0035;
+      bulletSpeed = GAME_HEIGHT * 0.01;
+      moveLeft = false;
+      moveRight = false;
+      moveUp = false;
+      moveDown = false;
+      frameCount = 0;
+      scoreEl.textContent = '分数: 0';
+      gameoverEl.style.display = 'none';
+      explosions = [];
+    }
+
+    function createUFO() {
+      if (gameOver) return;
+      if (ufos.length >= 5) return;
+      const x = Math.floor(Math.random() * (GAME_WIDTH - UFO_WIDTH));
+      const id = Math.random().toString(36).slice(2);
+      ufos.push({x: x, y: 0, shootTimer: 100, id});
+    }
+
+    function createBullet() {
+      if (gameOver) return;
+      bullets.push({x: planeX + PLANE_WIDTH * 0.34, y: planeY});
+    }
+
+    function createUfoBullet(x, y, ufoId) {
+      if (gameOver) return;
+      ufoBullets.push({x: x + UFO_WIDTH * 0.3, y: y + UFO_HEIGHT * 0.83, active: true, ufoId});
+    }
+
+    function update() {
+      if (gameOver) return;
+      frameCount++;
+      // 飞机移动
+      const moveStep = GAME_WIDTH * 0.015;
+      if (moveLeft) planeX -= moveStep;
+      if (moveRight) planeX += moveStep;
+      if (moveUp) planeY -= moveStep;
+      if (moveDown) planeY += moveStep;
+      planeX = Math.max(0, Math.min(GAME_WIDTH - PLANE_WIDTH, planeX));
+      planeY = Math.max(0, Math.min(GAME_HEIGHT - PLANE_HEIGHT, planeY));
+      // 子弹移动
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        bullets[i].y -= bulletSpeed;
+        if (bullets[i].y < -BULLET_SIZE) {
+          bullets.splice(i, 1);
+        }
+      }
+      // UFO移动和射击
+      for (let i = ufos.length - 1; i >= 0; i--) {
+        ufos[i].y += ufoSpeed;
+        ufos[i].shootTimer--;
+        if (ufos[i].shootTimer <= 0) {
+          createUfoBullet(ufos[i].x, ufos[i].y, ufos[i].id);
+          ufos[i].shootTimer = 100;
+        }
+        // 检查UFO和飞机碰撞
+        if (
+          ufos[i].y + UFO_HEIGHT > planeY &&
+          ufos[i].x + UFO_WIDTH > planeX &&
+          ufos[i].x < planeX + PLANE_WIDTH
+        ) {
+          endGame();
+          return;
+        }
+        // UFO超出底部
+        if (ufos[i].y > GAME_HEIGHT) {
+          ufos.splice(i, 1);
+        }
+      }
+      // UFO子弹移动
+      for (let i = ufoBullets.length - 1; i >= 0; i--) {
+        ufoBullets[i].y += bulletSpeed;
+        if (
+          ufoBullets[i].active &&
+          ufoBullets[i].y + BULLET_SIZE > planeY &&
+          ufoBullets[i].x + BULLET_SIZE > planeX &&
+          ufoBullets[i].x < planeX + PLANE_WIDTH
+        ) {
+          ufoBullets[i].active = false;
+          ufoBullets.splice(i, 1);
+          hp--;
+          if (hp <= 0) {
+            endGame();
+            return;
+          }
+          continue;
+        }
+        if (ufoBullets[i].y > GAME_HEIGHT) {
+          ufoBullets.splice(i, 1);
+        }
+      }
+      // 爆炸特效更新
+      for (let i = explosions.length - 1; i >= 0; i--) {
+        explosions[i].frame++;
+        if (explosions[i].frame > 20) explosions.splice(i, 1);
+      }
+      // 检查子弹和UFO碰撞
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        for (let j = ufos.length - 1; j >= 0; j--) {
+          if (
+            bullets[i].y < ufos[j].y + UFO_HEIGHT &&
+            bullets[i].y + BULLET_SIZE > ufos[j].y &&
+            bullets[i].x + BULLET_SIZE > ufos[j].x &&
+            bullets[i].x < ufos[j].x + UFO_WIDTH
+          ) {
+            for (const ub of ufoBullets) {
+              if (ub.ufoId === ufos[j].id) ub.active = false;
+            }
+            explosions.push({x: ufos[j].x + UFO_WIDTH / 2, y: ufos[j].y + UFO_HEIGHT / 2, frame: 0});
+            bullets.splice(i, 1);
+            ufos.splice(j, 1);
+            score++;
+            scoreEl.textContent = '分数: ' + score;
+            break;
+          }
+        }
+      }
+    }
+
+    function render() {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+      drawPlane(ctx, planeX, planeY);
+      for (const ufo of ufos) {
+        drawUFO(ctx, ufo.x, ufo.y);
+      }
+      for (const b of bullets) {
+        drawBullet(ctx, b.x, b.y, '#ff0');
+      }
+      for (const b of ufoBullets) {
+        if (b.active) drawBullet(ctx, b.x, b.y, '#f44');
+      }
+      for (const exp of explosions) {
+        drawExplosion(ctx, exp.x, exp.y, exp.frame);
+      }
+    }
+    function drawExplosion(ctx, x, y, frame) {
+      ctx.save();
+      const r = 10 + frame * 2 * (GAME_WIDTH / 400);
+      ctx.globalAlpha = 1 - frame / 20;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = frame % 2 === 0 ? '#fff' : '#ff0';
+      ctx.shadowColor = '#f00';
+      ctx.shadowBlur = 20;
+      ctx.fill();
+      ctx.restore();
+    }
+    function endGame() {
+      gameOver = true;
+      gameoverEl.style.display = 'block';
+    }
+    // 键盘控制
+    document.addEventListener('keydown', e => {
+      if (e.code === 'ArrowLeft') moveLeft = true;
+      if (e.code === 'ArrowRight') moveRight = true;
+      if (e.code === 'ArrowUp') moveUp = true;
+      if (e.code === 'ArrowDown') moveDown = true;
+      if (e.code === 'Space') canShoot = true;
+    });
+    document.addEventListener('keyup', e => {
+      if (e.code === 'ArrowLeft') moveLeft = false;
+      if (e.code === 'ArrowRight') moveRight = false;
+      if (e.code === 'ArrowUp') moveUp = false;
+      if (e.code === 'ArrowDown') moveDown = false;
+      if (e.code === 'Space' && canShoot) {
+        createBullet();
+        canShoot = false;
+      }
+    });
+    // 鼠标右键射击
+    let canMouseShoot = true;
+    document.addEventListener('mousedown', e => {
+      if (e.button === 2) canMouseShoot = true;
+    });
+    document.addEventListener('mouseup', e => {
+      if (e.button === 2 && canMouseShoot) {
+        createBullet();
+        canMouseShoot = false;
+      }
+    });
+    // 禁止右键菜单
+    game.addEventListener('contextmenu', e => e.preventDefault());
+    // 重新开始
+    document.addEventListener('click', e => {
+      if (e.target.id === 'restart' || e.target.id === 'restart-side') {
+        init();
+      }
+    });
+    // 鼠标控制
+    canvas.addEventListener('mousemove', e => {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      planeX = Math.max(0, Math.min(GAME_WIDTH - PLANE_WIDTH, mouseX - PLANE_WIDTH / 2));
+      planeY = Math.max(0, Math.min(GAME_HEIGHT - PLANE_HEIGHT, mouseY - PLANE_HEIGHT / 2));
+    });
+    // 触屏双手操作
+    let fireInterval = null;
+    const fireBtn = document.getElementById('fire-btn');
+    // 只在触屏设备上显示发射按钮
+    function isTouchDevice() {
+      return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    }
+    if (!isTouchDevice()) {
+      fireBtn.style.display = 'none';
+    }
+    // 左手发射按钮
+    fireBtn.addEventListener('touchstart', function(e) {
+      e.preventDefault();
+      createBullet();
+      // 连发
+      fireInterval = setInterval(createBullet, 180);
+    });
+    fireBtn.addEventListener('touchend', function(e) {
+      e.preventDefault();
+      clearInterval(fireInterval);
+    });
+    fireBtn.addEventListener('touchcancel', function(e) {
+      clearInterval(fireInterval);
+    });
+    // 右手控制飞机移动（全区可移动）
+    canvas.addEventListener('touchmove', function(e) {
+      if (!isTouchDevice()) return;
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      planeX = Math.max(0, Math.min(GAME_WIDTH - PLANE_WIDTH, touch.clientX - rect.left - PLANE_WIDTH / 2));
+      planeY = Math.max(0, Math.min(GAME_HEIGHT - PLANE_HEIGHT, touch.clientY - rect.top - PLANE_HEIGHT / 2));
+    }, { passive: false });
+    // 禁止双指缩放和滚动
+    canvas.addEventListener('touchstart', function(e) {
+      if (e.touches.length > 1) e.preventDefault();
+    }, { passive: false });
+    // 游戏主循环
+    function gameLoop() {
+      if (!gameOver && ufos.length < 5 && Math.random() < 0.03) createUFO();
+      update();
+      render();
+      requestAnimationFrame(gameLoop);
+    }
+    // 初始化
+    updateGameSize();
+    init();
+    gameLoop();
+  </script>
+</body>
+</html> 
