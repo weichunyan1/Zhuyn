@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>形近字学习助手</title>
     <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.6.0/style.css">
     <style>
         * {
             margin: 0;
@@ -136,7 +135,7 @@
             font-weight: 200;
             color: #0d47a1;
             transition: all 0.5s ease;
-            font-family: "楷体", "KaiTi", serif;
+            font-family: "楷体", "KaiTi", "Noto Serif SC",serif;
         }
         
         .options-container {
@@ -181,7 +180,7 @@
             transition: all 0.3s ease;
             box-shadow: 0 5px 15px rgba(0,0,0,0.08);
             border: 2px solid #90caf9;
-            font-family: "楷体", "KaiTi", serif;
+            font-family: "楷体", "KaiTi", "Noto Serif SC", serif;
             font-weight: normal;
         }
         
@@ -189,8 +188,7 @@
         @supports (-webkit-touch-callout: none) {
             .target-character,
             .option {
-                /*font-family: "PingFang SC", "Hiragino Sans GB", "楷体", "KaiTi", serif;*/
-                font-family: "STKaiti","Kaiti SC",  "KaiTi", "楷体", "Songti SC", "Noto Serif SC", serif;
+                font-family: "Kaiti SC", "STKaiti", "KaiTi", "楷体", "Songti SC", "Noto Serif SC", serif;
                 font-weight: normal;
             }
         }
@@ -527,6 +525,161 @@
                 min-width: 120px;
             }
         }
+
+        /* ===== iPad Safari 表单元素优化 ===== */
+        .file-input, #presetFileSelect {
+            font-size: 18px;
+            padding: 16px 20px;
+            min-height: 56px;
+            border: 2px solid #90caf9;
+            border-radius: 15px;
+            background: white;
+            width: 100%;
+            margin-top: 12px;
+            box-sizing: border-box;
+            -webkit-appearance: none;
+            appearance: none;
+            transition: all 0.3s ease;
+        }
+
+        .file-input:focus, #presetFileSelect:focus {
+            outline: none;
+            border-color: #1565c0;
+            box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.1);
+        }
+
+        input[type="file"] {
+            font-size: 17px;
+            padding: 15px;
+        }
+
+        .preset-upload {
+            position: relative;
+        }
+
+        .preset-upload::after {
+            content: "";
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 8px solid #1565c0;
+            pointer-events: none;
+        }
+
+        /* 确保标签文字也足够大 */
+        .file-upload h3, .preset-upload h3 {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+        }
+
+        .file-upload p, .preset-upload p {
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            .file-input, #presetFileSelect {
+                font-size: 16px;
+                padding: 14px 18px;
+                min-height: 52px;
+            }
+            
+            .settings-panel {
+                gap: 20px;
+            }
+            
+            .file-upload, .preset-upload {
+                min-width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .file-input, #presetFileSelect {
+                font-size: 16px;
+                padding: 12px 16px;
+                min-height: 48px;
+            }
+            
+            input[type="file"] {
+                font-size: 14px;
+                padding: 10px;
+            }
+        }
+
+        @supports (-webkit-touch-callout: none) {
+            .file-input, #presetFileSelect {
+                font-size: 17px;
+                min-height: 54px;
+            }
+            
+            .file-input, #presetFileSelect, input[type="file"] {
+                cursor: pointer;
+                -webkit-tap-highlight-color: transparent;
+            }
+        }
+                /* 文件输入标签样式 */
+        .file-input-label {
+            display: block;
+            position: relative;
+            margin-top: 12px;
+            cursor: pointer;
+        }
+
+        .file-input {
+            opacity: 0;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            cursor: pointer;
+        }
+
+        .file-input-text {
+            display: block;
+            padding: 16px 20px;
+            background: #1565c0;
+            color: white;
+            border-radius: 15px;
+            text-align: center;
+            font-size: 18px;
+            min-height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .file-input-text:hover {
+            background: #1976d2;
+            transform: translateY(-2px);
+        }
+
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            .file-input-text {
+                padding: 14px 18px;
+                font-size: 16px;
+                min-height: 52px;
+            }
+        }
+
+        @supports (-webkit-touch-callout: none) {
+            .file-input-text {
+                min-height: 54px;
+            }
+            
+            .file-input-text:active {
+                background: #0d47a1;
+                transform: scale(0.98);
+            }
+        }
     </style>
 </head>
 <body>
@@ -540,7 +693,10 @@
             <div class="file-upload">
                 <h3>选择形近字库文件</h3>
                 <p>请选择包含形近字组的TXT文件（一行一组）</p>
-                <input type="file" id="fileInput" class="file-input" accept=".txt">
+                <label for="fileInput" class="file-input-label">
+                    <input type="file" id="fileInput" class="file-input" accept=".txt">
+                    <span class="file-input-text">点击选择文件</span>
+                </label>
             </div>
             <div class="preset-upload">
                 <h3>或选择预设信息库</h3>
