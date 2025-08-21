@@ -107,8 +107,14 @@
         .wrong-feedback {
             color: #e74c3c;
         }
+        .topic-info {
+            margin: 6px 0 4px;
+            font-weight: bold;
+            color: #2c3e50;
+            text-align: center;
+        }
         .group-info {
-            margin: 10px 0;
+            margin: 6px 0 16px;
             font-weight: bold;
             color: #2c3e50;
         }
@@ -215,6 +221,12 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+        .section-title { display: flex; align-items: center; gap: 12px; }
+        .section-title .hint { color: #666; font-size: 0.95em; }
+        .preset-controls { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .upload-controls { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+        .upload-info.compact { margin: 0; }
+        .file-status-line { margin-top: 8px; color: #666; }
     </style>
 </head>
 <body>
@@ -229,16 +241,16 @@
         <!-- 预设信息库标签页 -->
         <div id="preset-tab" class="tab-content active">
             <div class="file-import">
-                <h3>选择预设信息库</h3>
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                <div class="section-title">
+                    <h3>选择预设信息库</h3>
+                    <span class="hint">请从下拉菜单中选择预置的信息库文件</span>
+                </div>
+                <div class="preset-controls">
                     <select id="word-file-select">
                         <option value="">-- 请选择预设信息库 --</option>
                     </select>
-                    <button type="button" onclick="refreshPresetFiles()" style="padding: 8px 12px; background-color: #3498db; color: white; border: none; border-radius: 3px; cursor: pointer;">
-                        刷新
-                    </button>
+                    <button type="button" onclick="refreshPresetFiles()" style="padding: 8px 12px; background-color: #3498db; color: white; border: none; border-radius: 3px; cursor: pointer;">刷新</button>
                 </div>
-                <p>请从下拉菜单中选择预置的信息库文件</p>
                 <div id="preset-loading" style="display: none; color: #f39c12; font-style: italic;">
                     <div class="loading-indicator"></div>
                     <span>正在加载文件...</span>
@@ -249,21 +261,28 @@
         <!-- 文件上传标签页 -->
         <div id="upload-tab" class="tab-content">
             <div class="file-upload">
-                <h3>上传自定义Excel文件</h3>
-                <div class="file-input-wrapper">
-                    <span>选择Excel文件</span>
-                    <input type="file" id="custom-file-input" class="file-input" accept=".xlsx,.xls" onchange="handleFileUpload(event)">
-                    <button type="button" onclick="document.getElementById('custom-file-input').click()" style="margin-left: 10px;">点击选择文件</button>
+                <div class="section-title">
+                    <h3>上传自定义Excel文件</h3>
                 </div>
-                <div class="upload-info">
-                    <p>支持格式：.xlsx, .xls</p>
-                    <p>文件格式要求：第一列为左边内容，第二列为右边内容</p>
-                    <p id="file-status"></p>
+                <div class="upload-controls">
+                    <div class="file-input-wrapper">
+                        <span>选择Excel文件</span>
+                        <input type="file" id="custom-file-input" class="file-input" accept=".xlsx,.xls" onchange="handleFileUpload(event)">
+                        <button type="button" onclick="document.getElementById('custom-file-input').click()" style="margin-left: 10px;">点击选择文件</button>
+                    </div>
+                    <div class="upload-info compact">
+                        <p>支持格式：.xlsx, .xls</p>
+                        <p>文件格式要求：第一列为左边内容，第二列为右边内容</p>
+                    </div>
                 </div>
+                <p id="file-status" class="file-status-line"></p>
             </div>
         </div>
     </div>
     
+    <div class="topic-info">
+        题目: <span id="topic-title">-</span>
+    </div>
     <div class="group-info">
         当前组别: <span id="current-group">-</span>/<span id="total-groups">-</span>
     </div>
@@ -333,6 +352,7 @@
         const wordFileSelect = document.getElementById('word-file-select');
         const customFileInput = document.getElementById('custom-file-input');
         const fileStatus = document.getElementById('file-status');
+        const topicTitle = document.getElementById('topic-title');
         
         // 预设的Excel文件列表改为从 JSON 加载
         let presetFiles = [];
@@ -583,6 +603,11 @@
         
         // 初始化游戏
         function initGame(wordPairs, fileName) {
+            // 更新题目显示（去掉扩展名）
+            if (fileName) {
+                const title = fileName.replace(/\.xlsx?$/i, '');
+                topicTitle.textContent = title;
+            }
             if (!wordPairs || wordPairs.length === 0) {
                 alert('请先选择有效的信息库或上传文件');
                 return false;
