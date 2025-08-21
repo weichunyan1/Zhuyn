@@ -139,24 +139,129 @@
             width: 100%;
             margin-bottom: 10px;
         }
+        .file-upload {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #e8f5e8;
+            border-radius: 5px;
+            border: 1px dashed #4caf50;
+        }
+        .file-upload h3 {
+            color: #2e7d32;
+            margin-top: 0;
+        }
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+            background-color: #4caf50;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .file-input-wrapper:hover {
+            background-color: #45a049;
+        }
+        .file-input {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        .upload-info {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        .tab-container {
+            margin-bottom: 20px;
+        }
+        .tab-buttons {
+            display: flex;
+            border-bottom: 2px solid #ddd;
+            margin-bottom: 20px;
+        }
+        .tab-button {
+            background: none;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            color: #666;
+        }
+        .tab-button.active {
+            color: #3498db;
+            border-bottom-color: #3498db;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .loading-indicator {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f39c12;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
     <h1>配对练习(选择文件版)</h1>
     
-    <div class="file-import">
-        <h3>选择信息库</h3>
-        <select id="word-file-select">
-            <option value="">加载中...</option>
-        </select>
-        <p>请从下拉菜单中选择预置的信息库文件</p>
-		
-	<!--    预览
-		<div class="preview-area" id="file-preview">
-        <p>文件内容将显示在这里...</p>
-        </div> 
-	-->
-		
+    <div class="tab-container">
+        <div class="tab-buttons">
+            <button class="tab-button active" onclick="switchTab('preset')">预设信息库</button>
+            <button class="tab-button" onclick="switchTab('upload')">上传自定义文件</button>
+        </div>
+        
+        <!-- 预设信息库标签页 -->
+        <div id="preset-tab" class="tab-content active">
+            <div class="file-import">
+                <h3>选择预设信息库</h3>
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                    <select id="word-file-select">
+                        <option value="">-- 请选择预设信息库 --</option>
+                    </select>
+                    <button type="button" onclick="refreshPresetFiles()" style="padding: 8px 12px; background-color: #3498db; color: white; border: none; border-radius: 3px; cursor: pointer;">
+                        刷新
+                    </button>
+                </div>
+                <p>请从下拉菜单中选择预置的信息库文件</p>
+                <div id="preset-loading" style="display: none; color: #f39c12; font-style: italic;">
+                    <div class="loading-indicator"></div>
+                    <span>正在加载文件...</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 文件上传标签页 -->
+        <div id="upload-tab" class="tab-content">
+            <div class="file-upload">
+                <h3>上传自定义Excel文件</h3>
+                <div class="file-input-wrapper">
+                    <span>选择Excel文件</span>
+                    <input type="file" id="custom-file-input" class="file-input" accept=".xlsx,.xls" onchange="handleFileUpload(event)">
+                    <button type="button" onclick="document.getElementById('custom-file-input').click()" style="margin-left: 10px;">点击选择文件</button>
+                </div>
+                <div class="upload-info">
+                    <p>支持格式：.xlsx, .xls</p>
+                    <p>文件格式要求：第一列为左边内容，第二列为右边内容</p>
+                    <p id="file-status"></p>
+                </div>
+            </div>
+        </div>
     </div>
     
     <div class="group-info">
@@ -209,7 +314,7 @@
             totalGroups: 0,
             totalWords: 0,
             matchedPairs: 0,
-			originalFileName: '' // 新增：存储原始文件名（不含扩展名）
+            originalFileName: ''
         };
         
         // DOM元素
@@ -223,46 +328,215 @@
         const mistakesList = document.getElementById('mistakes-list');
         const restartBtn = document.getElementById('restart-btn');
         const endGameBtn = document.getElementById('end-game-btn');
-        const filePreview = document.getElementById('file-preview');
         const currentGroupDisplay = document.getElementById('current-group');
         const totalGroupsDisplay = document.getElementById('total-groups');
         const wordFileSelect = document.getElementById('word-file-select');
+        const customFileInput = document.getElementById('custom-file-input');
+        const fileStatus = document.getElementById('file-status');
         
-		// 获取words目录下的Excel文件列表
-		async function getWordFileList() {
-			try {
-				const response = await fetch('/words/list');
-				if (!response.ok) {
-            throw new Error('获取文件列表失败');
-			}
-			return await response.json();
-			} catch (error) {
-				console.error('获取信息文件列表失败:', error);
-			throw error;
-			}
-			}        
-        // 初始化单词文件选择下拉框
-                async function initWordFileSelect() {
+        // 预设的Excel文件列表改为从 JSON 加载
+        let presetFiles = [];
+        let presetFileItems = []; // {name, path}
+        
+        // 预设文件的数据缓存
+        const presetDataCache = {};
+        
+        // 标签页切换功能
+        function switchTab(tabName) {
+            // 隐藏所有标签页内容
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // 移除所有标签页按钮的active状态
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // 显示选中的标签页内容
+            document.getElementById(tabName + '-tab').classList.add('active');
+            
+            // 设置选中标签页按钮的active状态
+            event.target.classList.add('active');
+        }
+        
+        // 获取预设文件列表（从 JSON 加载）
+        async function getPresetFileList() {
             try {
-                const wordFiles = await getWordFileList();
+                const res = await fetch('words/files.json', { cache: 'no-store' });
+                if (!res.ok) throw new Error(`配置文件读取失败(${res.status})`);
+                const items = await res.json();
+                // 兼容只提供 name 的旧格式
+                presetFileItems = items.map(it => ({
+                    name: it.name,
+                    path: it.path || `words/${it.name}`
+                }));
+                presetFiles = presetFileItems.map(it => it.name);
+                return presetFiles;
+            } catch (e) {
+                console.error('读取文件列表失败:', e);
+                throw e;
+            }
+        }
+        
+        // 刷新预设文件列表
+        function refreshPresetFiles() {
+            // 清空缓存
+            Object.keys(presetDataCache).forEach(key => {
+                delete presetDataCache[key];
+            });
+            
+            // 重新初始化选择框
+            initPresetFileSelect();
+            
+            // 显示刷新成功消息
+            const loadingDiv = document.getElementById('preset-loading');
+            loadingDiv.style.display = 'block';
+            loadingDiv.innerHTML = '<span style="color: #27ae60;">✓ 文件列表已刷新</span>';
+            setTimeout(() => {
+                loadingDiv.style.display = 'none';
+            }, 2000);
+        }
+        
+        // 根据name查找文件路径
+        function findPresetPathByName(name) {
+            const item = presetFileItems.find(i => i.name === name);
+            return item ? item.path : `words/${name}`;
+        }
+
+        // 加载预设文件
+        async function loadPresetFile(filename) {
+            // 如果缓存中已有数据，直接返回
+            if (presetDataCache[filename]) {
+                return presetDataCache[filename];
+            }
+            
+            try {
+                // 动态读取Excel文件（根据配置决定路径）
+                const response = await fetch(findPresetPathByName(filename));
+                if (!response.ok) {
+                    throw new Error('文件读取失败');
+                }
+                
+                const arrayBuffer = await response.arrayBuffer();
+                const data = new Uint8Array(arrayBuffer);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(sheet, { 
+                    header: 1,
+                    raw: false,
+                    defval: ""
+                });
+                
+                // 过滤空行并转换为配对格式
+                const pairs = jsonData
+                    .filter(row => row[0] && row[1])
+                    .map(row => ({ left: row[0], right: row[1] }));
+                
+                if (pairs.length === 0) {
+                    throw new Error('文件中没有有效数据');
+                }
+                
+                // 缓存数据
+                presetDataCache[filename] = pairs;
+                return pairs;
+                
+            } catch (error) {
+                console.error('加载预设文件失败:', error);
+                throw new Error(`加载文件失败: ${error.message}`);
+            }
+        }
+        
+        // 处理文件上传
+        function handleFileUpload(event) {
+            console.log('文件上传事件触发', event);
+            const file = event.target.files[0];
+            if (!file) {
+                console.log('没有选择文件');
+                return;
+            }
+            console.log('选择的文件:', file.name, file.type, file.size);
+            
+            // 检查文件类型
+            if (!file.name.match(/\.(xlsx|xls)$/i)) {
+                fileStatus.textContent = '错误：请选择Excel文件(.xlsx或.xls)';
+                fileStatus.style.color = '#e74c3c';
+                return;
+            }
+            
+            fileStatus.textContent = '正在读取文件...';
+            fileStatus.style.color = '#f39c12';
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[sheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(sheet, { 
+                        header: 1,
+                        raw: false,
+                        defval: ""
+                    });
+                    
+                    // 过滤空行并转换为配对格式
+                    const pairs = jsonData
+                        .filter(row => row[0] && row[1])
+                        .map(row => ({ left: row[0], right: row[1] }));
+                    
+                    if (pairs.length === 0) {
+                        fileStatus.textContent = '错误：文件中没有有效数据';
+                        fileStatus.style.color = '#e74c3c';
+                        return;
+                    }
+                    
+                    fileStatus.textContent = `成功读取文件！共找到 ${pairs.length} 个配对`;
+                    fileStatus.style.color = '#27ae60';
+                    
+                    // 自动开始游戏
+                    initGame(pairs, file.name.replace(/\.(xlsx|xls)$/i, ''));
+                    
+                } catch (error) {
+                    fileStatus.textContent = '错误：读取文件失败 - ' + error.message;
+                    fileStatus.style.color = '#e74c3c';
+                    console.error('文件读取错误:', error);
+                }
+            };
+            
+            reader.onerror = function() {
+                fileStatus.textContent = '错误：文件读取失败';
+                fileStatus.style.color = '#e74c3c';
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+        
+        // 初始化预设文件选择下拉框
+        async function initPresetFileSelect() {
+            try {
+                // 异步加载文件列表
+                const wordFiles = await getPresetFileList();
                 wordFileSelect.innerHTML = '';
                 
                 if (wordFiles.length === 0) {
-                    wordFileSelect.innerHTML = '<option value="">没有信息文件可选</option>';
+                    wordFileSelect.innerHTML = '<option value="">没有预设信息文件</option>';
                     return;
                 }
                 
                 // 添加默认提示选项
                 const defaultOption = document.createElement('option');
                 defaultOption.value = '';
-                defaultOption.textContent = '-- 请选择信息库 --';
+                defaultOption.textContent = '-- 请选择预设信息库 --';
                 wordFileSelect.appendChild(defaultOption);
                 
-                // 添加单词库选项
+                // 添加预设文件选项
                 wordFiles.forEach(file => {
                     const option = document.createElement('option');
                     option.value = file;
                     option.textContent = file.replace(/\.xlsx?$/i, '');
+                    option.title = `点击选择 ${file.replace(/\.xlsx?$/i, '')} 信息库`;
                     wordFileSelect.appendChild(option);
                 });
                 
@@ -272,100 +546,45 @@
                     if (!selectedFile) return;
                     
                     try {
-                        const wordPairs = await loadWordFile(selectedFile);
-                        //showFilePreview(wordPairs);
-                        initGame(wordPairs,selectedFile);  // 传入文件名
+                        // 显示加载状态
+                        const loadingDiv = document.getElementById('preset-loading');
+                        loadingDiv.style.display = 'block';
+                        loadingDiv.innerHTML = `<div class="loading-indicator"></div><span>正在加载 ${selectedFile}...</span>`;
+                        
+                        const wordPairs = await loadPresetFile(selectedFile);
+                        initGame(wordPairs, selectedFile);
+                        
+                        // 隐藏加载状态
+                        loadingDiv.style.display = 'none';
                     } catch (error) {
-                        alert('加载信息库失败: ' + error.message);
+                        console.error('加载预设文件失败:', error);
+                        let errorMessage = '加载预设信息库失败';
+                        
+                        if (error.message.includes('fetch')) {
+                            errorMessage += ': 无法访问文件，请检查文件是否存在';
+                        } else if (error.message.includes('XLSX')) {
+                            errorMessage += ': 文件格式错误，请确保是有效的Excel文件';
+                        } else {
+                            errorMessage += ': ' + error.message;
+                        }
+                        
+                        alert(errorMessage);
+                        // 重置选择
+                        this.value = '';
+                        // 隐藏加载状态
+                        document.getElementById('preset-loading').style.display = 'none';
                     }
                 });
             } catch (error) {
-                wordFileSelect.innerHTML = '<option value="">加载信息库列表失败</option>';
-                console.error('获取信息文件列表失败:', error);
+                wordFileSelect.innerHTML = '<option value="">加载预设信息文件列表失败</option>';
+                console.error('获取预设信息文件列表失败:', error);
             }
         }
-        
-        // 模拟加载选中的单词文件
-        // 替换原来的模拟函数
-		async function loadWordFile(filename) {
-			try {
-				const response = await fetch(`/words/get?file=${encodeURIComponent(filename)}`);
-				if (!response.ok) {
-            throw new Error('加载信息文件失败');
-			}
-			return await response.json();
-			} catch (error) {
-			console.error('加载信息文件失败:', error);
-			throw error;
-    }
-}
-        /* 不要预览
-        // 显示文件预览(只显示前2行)
-        function showFilePreview(wordPairs) {
-            filePreview.innerHTML = '';
-            
-            if (!wordPairs || wordPairs.length === 0) {
-                filePreview.innerHTML = '<p>没有可显示的内容</p>';
-                return;
-            }
-            
-            const table = document.createElement('table');
-            table.style.width = '100%';
-            table.style.borderCollapse = 'collapse';
-            
-            // 添加表头
-            const thead = document.createElement('thead');
-            const headerRow = document.createElement('tr');
-            ['左边', '右边'].forEach(text => {
-                const th = document.createElement('th');
-                th.textContent = text;
-                th.style.border = '1px solid #ddd';
-                th.style.padding = '8px';
-                th.style.textAlign = 'left';
-                headerRow.appendChild(th);
-            });
-            thead.appendChild(headerRow);
-            table.appendChild(thead);
-            
-            // 添加内容(只显示前2行)
-            const tbody = document.createElement('tbody');
-            wordPairs.slice(0, 2).forEach(pair => {
-                const row = document.createElement('tr');
-                
-                [pair.left, pair.right].forEach(text => {
-                    const td = document.createElement('td');
-                    td.textContent = text;
-                    td.style.border = '1px solid #ddd';
-                    td.style.padding = '8px';
-                    row.appendChild(td);
-                });
-                
-                tbody.appendChild(row);
-            });
-            
-            table.appendChild(tbody);
-            filePreview.appendChild(table);
-            
-            if (wordPairs.length >2) {
-                const info = document.createElement('p');
-                info.textContent = `...还有 ${wordPairs.length - 2} 行未显示`;
-                info.style.marginTop = '10px';
-                info.style.textAlign = 'center';
-                filePreview.appendChild(info);
-            }
-            
-            const countInfo = document.createElement('p');
-            countInfo.textContent = `共找到 ${wordPairs.length} 个单词/句子对`;
-            countInfo.style.marginTop = '10px';
-            countInfo.style.fontWeight = 'bold';
-            filePreview.appendChild(countInfo);
-        }
-		*/ //不要预览
         
         // 初始化游戏
-        function initGame(wordPairs,fileName) {
+        function initGame(wordPairs, fileName) {
             if (!wordPairs || wordPairs.length === 0) {
-                alert('请先选择有效的子信息库');
+                alert('请先选择有效的信息库或上传文件');
                 return false;
             }
             
@@ -384,7 +603,7 @@
                 totalGroups: Math.ceil(wordPairs.length / 5),
                 totalWords: wordPairs.length,
                 matchedPairs: 0,
-				originalFileName: fileName.replace(/\.xlsx?$/i, '') // 保存无后缀的文件名
+                originalFileName: fileName.replace(/\.xlsx?$/i, '')
             };
             
             // 更新统计显示
@@ -449,9 +668,6 @@
                 card.textContent = pair.left;
                 card.dataset.index = index;
                 card.addEventListener('click', function() {
-					// 点击英文单词时朗读
-                   // speakWord(pair.left);
-                    
                     // 如果没有选中右边卡片，可以切换选择其他左边卡片
                     if (!gameState.selectedCard || gameState.selectedCard.parentElement === leftColumn) {
                         if (gameState.selectedCard) {
@@ -461,7 +677,7 @@
                         card.classList.add('selected');
                     } else {
                         // 已经选中了右边卡片，尝试配对                  
-						handleCardSelection(card, pair.left);
+                        handleCardSelection(card, pair.left);
                     }                   
                 });
                 leftColumn.appendChild(card);
@@ -484,7 +700,7 @@
                 card.textContent = pair.right;
                 card.dataset.index = index;
                 card.addEventListener('click', function() {
-					// 如果没有选中左边卡片，可以切换选择其他右边卡片
+                    // 如果没有选中左边卡片，可以切换选择其他右边卡片
                     if (!gameState.selectedCard || gameState.selectedCard.parentElement === rightColumn) {
                         if (gameState.selectedCard) {
                             gameState.selectedCard.classList.remove('selected');
@@ -493,7 +709,7 @@
                         card.classList.add('selected');
                     } else {
                         // 已经选中了左边卡片，尝试配对
-						handleCardSelection(card);
+                        handleCardSelection(card);
                     }
                 });
                 rightColumn.appendChild(card);
@@ -508,13 +724,6 @@
         
         // 处理卡片选择
         function handleCardSelection(card, leftText) {
-            /* 去掉朗读
-			if (leftText) {
-                // 如果是英文卡片，朗读内容
-                speakWord(leftText);
-            }
-            */
-			
             // 如果已经选中了一张卡片
             if (gameState.selectedCard) {
                 // 检查是否匹配
@@ -638,7 +847,7 @@
                 } else {
                     // 游戏全部完成
                     showMistakes();
-					downloadMistakes(); // 新增：游戏结束时自动下载错题本
+                    downloadMistakes();
                 }
             }
         }
@@ -646,7 +855,7 @@
         // 结束游戏并显示错题本
         function endGame() {
             showMistakes();
-			downloadMistakes(); // 新增：手动结束游戏时也下载错题本
+            downloadMistakes();
         }
         
         // 显示错题本
@@ -664,24 +873,24 @@
                 mistakesList.innerHTML = '<li>没有错误记录！</li>';
             }
         }
-		
-		// 新增：下载错题本功能
+        
+        // 下载错题本功能
         function downloadMistakes() {
             if (gameState.mistakes.length === 0) return;
             
             // 获取当前时间并格式化为文件名
             const now = new Date();
             const timeStr = [
-			now.getFullYear(),
-			String(now.getMonth() + 1).padStart(2, '0'),
-			String(now.getDate()).padStart(2, '0'),
-			'_',
-			String(now.getHours()).padStart(2, '0'),
-			String(now.getMinutes()).padStart(2, '0'),
-			String(now.getSeconds()).padStart(2, '0')
-		].join('');
+                now.getFullYear(),
+                String(now.getMonth() + 1).padStart(2, '0'),
+                String(now.getDate()).padStart(2, '0'),
+                '_',
+                String(now.getHours()).padStart(2, '0'),
+                String(now.getMinutes()).padStart(2, '0'),
+                String(now.getSeconds()).padStart(2, '0')
+            ].join('');
             
-             const fileName = `${gameState.originalFileName}_错题本_${timeStr}.xlsx`;
+            const fileName = `${gameState.originalFileName}_错题本_${timeStr}.xlsx`;
             
             // 准备数据
             const data = [
@@ -696,13 +905,13 @@
             // 创建工作簿
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.aoa_to_sheet(data);
-			
-			// 设置列宽
-			ws['!cols'] = [
-			{ wch: 30 }, // 英文列
-			{ wch: 30 }, // 错误选择列
-			{ wch: 30 }  // 正确答案列
-			];
+            
+            // 设置列宽
+            ws['!cols'] = [
+                { wch: 30 }, // 英文列
+                { wch: 30 }, // 错误选择列
+                { wch: 30 }  // 正确答案列
+            ];
             XLSX.utils.book_append_sheet(wb, ws, "错题本");
             
             // 生成Excel文件并下载
@@ -721,8 +930,6 @@
         if (synth.onvoiceschanged !== undefined) {
             synth.onvoiceschanged = loadVoices;
         }
-		
-		/* 去掉朗读功能
         
         // 朗读单词/句子
         function speakWord(word) {
@@ -749,7 +956,6 @@
             
             synth.speak(utterance);
         }
-		*/
         
         // 显示反馈
         function showFeedback(isCorrect) {
@@ -784,14 +990,20 @@
             if (gameState.wordPairs.length > 0) {
                 initGame(gameState.wordPairs, gameState.originalFileName);
             } else {
-                alert('请先选择信息库');
+                alert('请先选择信息库或上传文件');
             }
         });
         
         endGameBtn.addEventListener('click', endGame);
         
-        // 初始化单词文件选择下拉框
-        initWordFileSelect();
+        // 初始化预设文件选择下拉框
+        initPresetFileSelect();
+        
+        // 调试信息
+        console.log('页面初始化完成');
+        console.log('文件状态元素:', fileStatus);
+        console.log('自定义文件输入元素:', customFileInput);
+        console.log('文件上传处理函数:', typeof handleFileUpload);
     </script>
 </body>
 </html>
